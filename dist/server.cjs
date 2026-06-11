@@ -229,11 +229,7 @@ async function startServer() {
   });
   app.post("/api/ai-advisor", async (req, res) => {
     const { transactions, assets, budgets, goals } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
-    console.log("[AI Advisor] Request received");
-    console.log("[AI Advisor] API Key available:", !!apiKey);
-    if (!apiKey) {
-      console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
+    const sendMockResponse = () => {
       const totalExpense = transactions.filter((t) => t.type === "expense" || t.type === "subscription").reduce((sum, t) => sum + t.amount, 0);
       const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
       const categorySpending = {};
@@ -270,8 +266,15 @@ async function startServer() {
         ),
         goalFeedback: `\u6839\u64DA\u76EE\u524D\u7684\u6DE8\u8CC7\u7522 $${(req.body.assets || []).reduce((s, a) => s + (a.type === "debt" ? -a.amount : a.amount), 0).toLocaleString()} \u5143\uFF0C\u8DDD\u96E2\u60A8\u7684\u300C${goals?.title || "\u76EE\u6A19"}\u300D\u9054\u6210\u7387\u5DF2\u5728\u8A08\u7B97\u4E2D\u3002`
       });
-    }
+    };
+    const apiKey = getApiKey();
+    console.log("[AI Advisor] Request received");
+    console.log("[AI Advisor] API Key available:", !!apiKey);
     try {
+      if (!apiKey) {
+        console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
+        return sendMockResponse();
+      }
       const prompt = `\u60A8\u662F\u4E00\u4F4D\u65E2\u5C08\u696D\u53C8\u89AA\u5207\u7684\u300CAI \u7406\u8CA1\u7BA1\u5BB6 - \u827E\u8389\u7D72\u300D\u3002
 \u8ACB\u6DF1\u5EA6\u5206\u6790\u4EE5\u4E0B\u4F7F\u7528\u8005\u7684\u6D88\u8CBB\u7FD2\u6163\u3001\u8CA1\u52D9\u6D41\u5411\u8207\u9810\u7B97\u9054\u6210\u72C0\u6CC1\u3002
 
@@ -295,11 +298,7 @@ async function startServer() {
 5. goalFeedback: \u6839\u64DA\u76EE\u524D\u7684\u6D88\u8CBB\u901F\u5EA6\uFF0C\u9054\u6210\u300C${goals?.title || "\u9577\u671F\u76EE\u6A19"}\u300D\u7684\u771F\u5BE6\u53EF\u80FD\u6027\u8207\u9032\u5EA6\u5206\u6790\u3002
 
 \u8ACB\u53EA\u56DE\u50B3 JSON \u683C\u5F0F\uFF0C\u4E0D\u8981\u6709\u5176\u4ED6\u6587\u5B57\u3002`;
-      const apiKey2 = getApiKey();
-      if (!apiKey2) {
-        throw new Error("API Key not available");
-      }
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey2}`, {
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
           role: "user",
           parts: [{ text: prompt }]
@@ -308,15 +307,16 @@ async function startServer() {
           responseMimeType: "application/json"
         }
       });
-      const parsedText = response.data.candidates[0].content.parts[0].text;
+      const parsedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!parsedText) {
         throw new Error("No response from Gemini API for Advisor");
       }
       const result = JSON.parse(parsedText);
       res.json(result);
     } catch (e) {
-      console.error("Gemini Advisor Error:", e);
-      res.status(500).json({ error: e.message || "Failed to generate financial advisor report" });
+      console.error("[AI Advisor] Gemini API Error:", e?.response?.data || e?.message || e);
+      console.log("[AI Advisor] Falling back to MOCK response due to API failure");
+      return sendMockResponse();
     }
   });
   app.post("/api/ai-chat", async (req, res) => {

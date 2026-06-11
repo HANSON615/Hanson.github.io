@@ -279,14 +279,9 @@ async function startServer() {
   // API Route: AI Advisor Financial Summary and Feedback
   app.post('/api/ai-advisor', async (req, res) => {
     const { transactions, assets, budgets, goals } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    console.log('[AI Advisor] Request received');
-    console.log('[AI Advisor] API Key available:', !!apiKey);
-
-    if (!apiKey) {
-      console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
-      
+    
+    // 定義模擬回覆函數
+    const sendMockResponse = () => {
       const totalExpense = transactions
         .filter((t: any) => t.type === 'expense' || t.type === 'subscription')
         .reduce((sum: number, t: any) => sum + t.amount, 0);
@@ -344,9 +339,18 @@ async function startServer() {
         ),
         goalFeedback: `根據目前的淨資產 $${(req.body.assets || []).reduce((s: number, a: any) => s + (a.type === 'debt' ? -a.amount : a.amount), 0).toLocaleString()} 元，距離您的「${goals?.title || '目標'}」達成率已在計算中。`
       });
-    }
+    };
+
+    const apiKey = getApiKey();
+    console.log('[AI Advisor] Request received');
+    console.log('[AI Advisor] API Key available:', !!apiKey);
 
     try {
+      if (!apiKey) {
+        console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
+        return sendMockResponse();
+      }
+
       const prompt = `您是一位既專業又親切的「AI 理財管家 - 艾莉絲」。
 請深度分析以下使用者的消費習慣、財務流向與預算達成狀況。
 
@@ -370,11 +374,6 @@ async function startServer() {
 5. goalFeedback: 根據目前的消費速度，達成「${goals?.title || '長期目標'}」的真實可能性與進度分析。
 
 請只回傳 JSON 格式，不要有其他文字。`;
-
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        throw new Error("API Key not available");
-      }
       
       const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
@@ -386,7 +385,7 @@ async function startServer() {
         }
       });
 
-      const parsedText = response.data.candidates[0].content.parts[0].text;
+      const parsedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!parsedText) {
         throw new Error("No response from Gemini API for Advisor");
       }
@@ -394,8 +393,9 @@ async function startServer() {
       const result = JSON.parse(parsedText);
       res.json(result);
     } catch (e: any) {
-      console.error("Gemini Advisor Error:", e);
-      res.status(500).json({ error: e.message || "Failed to generate financial advisor report" });
+      console.error("[AI Advisor] Gemini API Error:", e?.response?.data || e?.message || e);
+      console.log("[AI Advisor] Falling back to MOCK response due to API failure");
+      return sendMockResponse();
     }
   });
 
