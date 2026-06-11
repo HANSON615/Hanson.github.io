@@ -1252,27 +1252,37 @@ export default function App() {
 
                 {/* Chat Messages */}
                 <div className={`bg-white/10 border border-white/20 backdrop-blur-sm rounded-xl p-3 mb-4 overflow-y-auto transition-all duration-300 ${isMiniChatExpanded ? 'max-h-[400px]' : 'max-h-[200px]'}`}>
-                  {chatMessages.slice(isMiniChatExpanded ? -10 : -3).map((msg, idx) => (
-                    <div key={idx} className={`mb-2 ${msg.role === 'user' ? 'text-right' : ''}`}>
-                      <div className={`inline-block px-3 py-1.5 rounded-lg ${
-                        isMiniChatExpanded ? 'text-sm' : 'text-xs'
-                      } ${
-                        msg.role === 'user' 
-                          ? 'bg-white/20 text-white' 
-                          : 'bg-[#4F5D4A]/30 text-white'
-                      }`}>
-                        {msg.text}
+                  {chatMessages.slice(isMiniChatExpanded ? -10 : -3).map((msg, idx) => {
+                    // Safety check - ensure msg has required fields
+                    const safeMsg = {
+                      role: msg?.role || 'ai',
+                      text: msg?.text || '',
+                      time: msg?.time || '',
+                      isMock: !!msg?.isMock
+                    };
+                    
+                    return (
+                      <div key={idx} className={`mb-2 ${safeMsg.role === 'user' ? 'text-right' : ''}`}>
+                        <div className={`inline-block px-3 py-1.5 rounded-lg ${
+                          isMiniChatExpanded ? 'text-sm' : 'text-xs'
+                        } ${
+                          safeMsg.role === 'user' 
+                            ? 'bg-white/20 text-white' 
+                            : 'bg-[#4F5D4A]/30 text-white'
+                        }`}>
+                          {safeMsg.text}
+                        </div>
+                        <div className={`text-[8px] opacity-50 mt-1 flex gap-1 ${safeMsg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <span>{safeMsg.time}</span>
+                          {safeMsg.isMock && (
+                            <span className="text-amber-300">
+                              [模擬]
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className={`text-[8px] opacity-50 mt-1 flex gap-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <span>{msg.time}</span>
-                        {msg.isMock !== undefined && msg.isMock && (
-                          <span className="text-amber-300">
-                            [模擬]
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {isChatLoading && (
                     <div className={`opacity-75 animate-pulse ${isMiniChatExpanded ? 'text-sm' : 'text-xs'}`}>
                       思考中...
