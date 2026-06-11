@@ -41,41 +41,66 @@ import {
 import { Transaction, AssetItem, FinancialGoal, BudgetConfig, AdvisorResponse } from './types';
 
 export default function App() {
-  // --- Persistent State ---
+  // --- Persistent State with Safety Checks ---
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const local = localStorage.getItem('morandi_transactions_v2');
-    return local ? JSON.parse(local) : INITIAL_TRANSACTIONS;
+    try {
+      const local = localStorage.getItem('morandi_transactions_v2');
+      if (!local) return INITIAL_TRANSACTIONS;
+      const parsed = JSON.parse(local);
+      return Array.isArray(parsed) ? parsed : INITIAL_TRANSACTIONS;
+    } catch (e) {
+      console.error('Failed to load transactions:', e);
+      return INITIAL_TRANSACTIONS;
+    }
   });
 
   const [assets, setAssets] = useState<AssetItem[]>(() => {
-    const local = localStorage.getItem('morandi_assets_v2');
-    return local ? JSON.parse(local) : INITIAL_ASSET_ITEMS;
+    try {
+      const local = localStorage.getItem('morandi_assets_v2');
+      if (!local) return INITIAL_ASSET_ITEMS;
+      const parsed = JSON.parse(local);
+      return Array.isArray(parsed) ? parsed : INITIAL_ASSET_ITEMS;
+    } catch (e) {
+      console.error('Failed to load assets:', e);
+      return INITIAL_ASSET_ITEMS;
+    }
   });
 
   const [budgets, setBudgets] = useState<BudgetConfig[]>(() => {
-    const local = localStorage.getItem('morandi_budgets');
-    let savedBudgets = local ? JSON.parse(local) : null;
-    
-    // 確保新的預算類別被加入（餐飲、交通）
-    if (savedBudgets) {
-      const hasFoodBudget = savedBudgets.some((b: BudgetConfig) => b.category === '餐飲');
-      const hasTransportBudget = savedBudgets.some((b: BudgetConfig) => b.category === '交通');
+    try {
+      const local = localStorage.getItem('morandi_budgets');
+      let savedBudgets = local ? JSON.parse(local) : null;
       
-      if (!hasFoodBudget) {
-        savedBudgets.push({ category: '餐飲', limit: 8000 });
+      // 確保新的預算類別被加入（餐飲、交通）
+      if (savedBudgets && Array.isArray(savedBudgets)) {
+        const hasFoodBudget = savedBudgets.some((b: BudgetConfig) => b.category === '餐飲');
+        const hasTransportBudget = savedBudgets.some((b: BudgetConfig) => b.category === '交通');
+        
+        if (!hasFoodBudget) {
+          savedBudgets.push({ category: '餐飲', limit: 8000 });
+        }
+        if (!hasTransportBudget) {
+          savedBudgets.push({ category: '交通', limit: 3000 });
+        }
+        return savedBudgets;
       }
-      if (!hasTransportBudget) {
-        savedBudgets.push({ category: '交通', limit: 3000 });
-      }
-      return savedBudgets;
+    } catch (e) {
+      console.error('Failed to load budgets:', e);
     }
     
     return INITIAL_BUDGET_CONFIGS;
   });
 
   const [goal, setGoal] = useState<FinancialGoal>(() => {
-    const local = localStorage.getItem('morandi_goal_v2');
-    return local ? JSON.parse(local) : INITIAL_GOAL;
+    try {
+      const local = localStorage.getItem('morandi_goal_v2');
+      if (!local) return INITIAL_GOAL;
+      const parsed = JSON.parse(local);
+      return parsed && typeof parsed === 'object' ? parsed : INITIAL_GOAL;
+    } catch (e) {
+      console.error('Failed to load goal:', e);
+      return INITIAL_GOAL;
+    }
   });
 
   // --- UI Control States ---
