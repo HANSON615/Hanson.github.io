@@ -50,6 +50,21 @@ async function startServer() {
 
   app.use(express.json());
 
+  // === 測試端點：檢查環境變量 ===
+  app.get('/api/test-env', (req, res) => {
+    console.log("[Test Endpoint] Checking environment variables...");
+    const apiKey = getApiKey();
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      apiKeyAvailable: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      envKeys: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')),
+      nodeEnv: process.env.NODE_ENV
+    });
+  });
+
   // API Route: Natural Language Parse Transaction
   app.post('/api/parse-transaction', async (req, res) => {
     const { text } = req.body;

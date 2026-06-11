@@ -44,6 +44,18 @@ async function startServer() {
   console.log(`[Server] Using PORT: ${PORT}`);
   console.log(`[Server] Current directory: ${process.cwd()}`);
   app.use(import_express.default.json());
+  app.get("/api/test-env", (req, res) => {
+    console.log("[Test Endpoint] Checking environment variables...");
+    const apiKey = getApiKey();
+    res.json({
+      success: true,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      apiKeyAvailable: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      envKeys: Object.keys(process.env).filter((k) => !k.includes("KEY") && !k.includes("SECRET")),
+      nodeEnv: process.env.NODE_ENV
+    });
+  });
   app.post("/api/parse-transaction", async (req, res) => {
     const { text } = req.body;
     console.log("Parsing text:", text);
