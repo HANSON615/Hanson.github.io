@@ -155,14 +155,26 @@ async function startServer() {
     const sendMockResponse = () => {
       console.log("Mocking parse-transaction response");
       
-      // Always split FIRST, then check each part individually
-      const normalizedText = text.replace(/\n/g, '，');
-      let parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
+      // 先檢查整個文本是否是一個訂閱交易
+      const lowerFullText = text.toLowerCase();
+      const isFullTextSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || lowerFullText.includes('disney') || lowerFullText.includes('月費') || lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
       
-      // Handle the case where input is like "加油100火鍋150" (no punctuation)
-      if (parts.length === 1 && !normalizedText.includes('，')) {
-        const regexSplit = text.match(/[^\d\s]+\d+/g);
-        if (regexSplit) parts = regexSplit;
+      let parts: string[];
+      
+      if (isFullTextSubscription) {
+        // 如果是訂閱，不拆分，整個文本作為一條記錄
+        parts = [text];
+        console.log("Detected subscription, treating as single transaction");
+      } else {
+        // 否則正常拆分
+        const normalizedText = text.replace(/\n/g, '，');
+        parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
+        
+        // Handle the case where input is like "加油100火鍋150" (no punctuation)
+        if (parts.length === 1 && !normalizedText.includes('，')) {
+          const regexSplit = text.match(/[^\d\s]+\d+/g);
+          if (regexSplit) parts = regexSplit;
+        }
       }
 
       console.log("Split parts:", parts);
@@ -269,6 +281,38 @@ async function startServer() {
       }
       
       const result = JSON.parse(parsedText);
+      
+      // 檢查是否是訂閱相關的輸入，如果是，確保只有一條記錄
+      const lowerFullText = text.toLowerCase();
+      const isFullTextSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || lowerFullText.includes('disney') || lowerFullText.includes('月費') || lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
+      
+      if (isFullTextSubscription && result.transactions && Array.isArray(result.transactions) && result.transactions.length > 1) {
+        // 如果是訂閱但被拆成多條記錄，我們來修復它
+        console.log("Fixing split subscription transaction");
+        
+        // 找到金額最大的那條記錄（通常是正確的訂閱費用）
+        let maxAmountTx = result.transactions[0];
+        for (const tx of result.transactions) {
+          if (tx.amount > maxAmountTx.amount) {
+            maxAmountTx = tx;
+          }
+        }
+        
+        // 只保留金額最大的那條記錄，並確保它是訂閱類型
+        maxAmountTx.type = 'subscription';
+        maxAmountTx.category = '訂閱服務';
+        maxAmountTx.recurrence = 'monthly';
+        maxAmountTx.tags = ['固定支出', '自動扣款'];
+        
+        // 設置商家名稱
+        if (lowerFullText.includes('netflix')) maxAmountTx.merchant = 'Netflix';
+        else if (lowerFullText.includes('spotify')) maxAmountTx.merchant = 'Spotify';
+        else if (lowerFullText.includes('disney')) maxAmountTx.merchant = 'Disney+';
+        else if (lowerFullText.includes('youtube')) maxAmountTx.merchant = 'YouTube Premium';
+        else maxAmountTx.merchant = '訂閱服務';
+        
+        result.transactions = [maxAmountTx];
+      }
       
       // Post-processing for each transaction to ensure accuracy
       if (result.transactions && Array.isArray(result.transactions)) {

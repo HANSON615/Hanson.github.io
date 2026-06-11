@@ -446,7 +446,7 @@ export default function App() {
 
   // Month Spending calculation: Filter transaction date in the current mocked month (2026-06)
   const monthlyExpenses = transactions
-    .filter(t => t.type === 'expense' && t.date.startsWith('2026-06'))
+    .filter(t => (t.type === 'expense' || t.type === 'subscription') && t.date.startsWith('2026-06'))
     .reduce((sum, current) => sum + current.amount, 0);
 
   const monthlyIncome = transactions
@@ -455,9 +455,24 @@ export default function App() {
 
   // Category aggregate spending
   const getCategorySpending = (categoryName: string) => {
-    return transactions
-      .filter(t => t.type === 'expense' && t.category.toLowerCase().includes(categoryName.toLowerCase()))
-      .reduce((sum, t) => sum + t.amount, 0);
+    const filtered = transactions.filter(t => {
+      // 檢查類型
+      if (t.type !== 'expense' && t.type !== 'subscription') return false;
+      
+      // 檢查日期（當前月份）
+      const currentMonth = '2026-06';
+      if (!t.date.startsWith(currentMonth)) return false;
+      
+      // 檢查分類匹配 - 更簡單的邏輯
+      const txCatLower = t.category.toLowerCase();
+      const budgetCatLower = categoryName.toLowerCase();
+      return txCatLower.includes(budgetCatLower) || budgetCatLower.includes(txCatLower);
+    });
+    
+    const total = filtered.reduce((sum, t) => sum + t.amount, 0);
+    console.log(`Category ${categoryName}:`, filtered.length, 'transactions, total:', total);
+    
+    return total;
   };
 
   // --- AI Chat Handler ---
@@ -705,12 +720,12 @@ export default function App() {
 
   // Check if a new transaction exceeds budget
   const checkBudget = (tx: Transaction, currentTxs: Transaction[]) => {
-    if (tx.type !== 'expense') return;
+    if (tx.type !== 'expense' && tx.type !== 'subscription') return;
     
     const budget = budgets.find(b => tx.category.includes(b.category) || b.category.includes(tx.category));
     if (budget) {
       const currentSpending = currentTxs
-        .filter(t => t.type === 'expense' && t.category === tx.category && t.date.startsWith('2026-06'))
+        .filter(t => (t.type === 'expense' || t.type === 'subscription') && (t.category.includes(budget.category) || budget.category.includes(t.category)) && t.date.startsWith('2026-06'))
         .reduce((sum, t) => sum + t.amount, 0);
       
       const totalAfter = currentSpending + tx.amount;
@@ -768,7 +783,7 @@ export default function App() {
         const firstTx = newTransactions[0];
         if (firstTx) {
           const categoryExists = budgets.some(b => firstTx.category.includes(b.category) || b.category.includes(firstTx.category));
-          if (firstTx.type === 'expense' && !categoryExists && firstTx.category !== '未分類') {
+          if ((firstTx.type === 'expense' || firstTx.type === 'subscription') && !categoryExists && firstTx.category !== '未分類') {
             showConfirm(
               '發現新分類', 
               `理財小精靈辨識到新分類「${firstTx.category}」，是否要為其建立預算帳戶？`, 
