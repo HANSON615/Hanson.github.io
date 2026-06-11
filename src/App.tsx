@@ -216,10 +216,10 @@ export default function App() {
   }, [advisorReport]);
 
   // --- Stock Price Fetching ---
-  const fetchStockPrices = async (symbols: string[]) => {
+  const fetchStockPrices = async (symbols: string[], forceRefresh = false) => {
     if (symbols.length === 0) return;
     setIsFetchingStock(true);
-    console.log("Attempting to fetch symbols:", symbols);
+    console.log("Attempting to fetch symbols:", symbols, "forceRefresh:", forceRefresh);
     try {
       const newPrices: Record<string, number> = { ...stockPrices };
       
@@ -232,7 +232,13 @@ export default function App() {
       };
 
       for (const symbol of symbols) {
+        // 如果不是強制刷新且已有價格，則跳過
+        if (!forceRefresh && stockPrices[symbol]) {
+          continue;
+        }
+        
         try {
+          console.log(`Fetching price for ${symbol}...`);
           const res = await fetch('/api/stock-price', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -242,8 +248,9 @@ export default function App() {
           if (res.ok) {
             const data = await res.json();
             newPrices[symbol] = data.price;
-            console.log(`Fetched ${symbol}: ${data.price}`);
+            console.log(`Fetched ${symbol}: ${data.price} (source: ${data.source})`);
           } else {
+            console.log(`API failed for ${symbol}, using fallback`);
             // Use local fallback if API fails
             if (localStockMap[symbol]) {
               newPrices[symbol] = localStockMap[symbol];
@@ -261,6 +268,18 @@ export default function App() {
       console.error("Critical error in fetchStockPrices:", err);
     } finally {
       setIsFetchingStock(false);
+    }
+  };
+
+  // 手動刷新所有股價
+  const refreshAllStockPrices = () => {
+    const stockSymbols = assets
+      .filter(a => a.type === 'stock' && a.symbol)
+      .map(a => a.symbol as string);
+    
+    const uniqueSymbols: string[] = Array.from(new Set(stockSymbols));
+    if (uniqueSymbols.length > 0) {
+      fetchStockPrices(uniqueSymbols, true);
     }
   };
 
@@ -1889,12 +1908,28 @@ export default function App() {
                     <span className="text-xs uppercase tracking-wider text-[#8E9B85] font-bold">Investments & Savings Master</span>
                     <h2 className="text-2xl font-serif text-[#4F5D4A] mt-1">資產部位 & 儲蓄清冊</h2>
                   </div>
-                  <button
-                    onClick={() => setShowAssetForm(true)}
-                    className="px-4 py-2 bg-[#4F5D4A] text-white hover:bg-[#3F513D] text-xs font-semibold rounded-lg transition"
-                  >
-                    + 新增資產帳戶
-                  </button>
+                  <div className="flex gap-2">
+                    {assets.some(a => a.type === 'stock') && (
+                      <button
+                        onClick={refreshAllStockPrices}
+                        disabled={isFetchingStock}
+                        className="px-4 py-2 bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 text-xs font-semibold rounded-lg transition flex items-center gap-1"
+                      >
+                        {isFetchingStock ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3" />
+                        )}
+                        刷新股價
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowAssetForm(true)}
+                      className="px-4 py-2 bg-[#4F5D4A] text-white hover:bg-[#3F513D] text-xs font-semibold rounded-lg transition"
+                    >
+                      + 新增資產帳戶
+                    </button>
+                  </div>
                 </div>
 
                 {/* Add Asset Form Modal */}
