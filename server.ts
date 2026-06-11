@@ -177,8 +177,11 @@ async function startServer() {
     const { transactions, assets, budgets, goals } = req.body;
     const apiKey = process.env.GEMINI_API_KEY;
 
+    console.log('[AI Advisor] Request received');
+    console.log('[AI Advisor] API Key available:', !!apiKey);
+
     if (!apiKey) {
-      console.log("Mocking ai-advisor response because GEMINI_API_KEY is missing");
+      console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
       
       const totalExpense = transactions
         .filter((t: any) => t.type === 'expense' || t.type === 'subscription')
@@ -293,10 +296,10 @@ async function startServer() {
     const apiKey = process.env.GEMINI_API_KEY;
 
     console.log("[AI Chat] Received message:", message);
+    console.log("[AI Chat] API Key available:", !!apiKey);
 
-    // 暫時只使用模擬回覆，直到 API Key 問題解決
-    if (true || !apiKey || apiKey === 'MOCK_KEY') {
-      console.log("[AI Chat] Mocking response because GEMINI_API_KEY is missing");
+    if (!apiKey || apiKey === 'MOCK_KEY') {
+      console.log("[AI Chat] Using MOCK response (API key missing)");
       const lowerMsg = message.toLowerCase();
       let mockResponse = '了解！我是您的 AI 理財管家。您可以問我關於：\n\n• 預算花費狀態\n• 淨資產分析\n• 股票/投資組合\n• 理財建議\n• 或任何財務相關問題\n\n請告訴我有什麼能幫助您的？';
       

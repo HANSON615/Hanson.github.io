@@ -164,8 +164,10 @@ async function startServer() {
   app.post("/api/ai-advisor", async (req, res) => {
     const { transactions, assets, budgets, goals } = req.body;
     const apiKey = process.env.GEMINI_API_KEY;
+    console.log("[AI Advisor] Request received");
+    console.log("[AI Advisor] API Key available:", !!apiKey);
     if (!apiKey) {
-      console.log("Mocking ai-advisor response because GEMINI_API_KEY is missing");
+      console.log("[AI Advisor] Using MOCK response (GEMINI_API_KEY missing)");
       const totalExpense = transactions.filter((t) => t.type === "expense" || t.type === "subscription").reduce((sum, t) => sum + t.amount, 0);
       const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
       const categorySpending = {};
@@ -251,8 +253,9 @@ async function startServer() {
     const { message, context } = req.body;
     const apiKey = process.env.GEMINI_API_KEY;
     console.log("[AI Chat] Received message:", message);
-    if (true) {
-      console.log("[AI Chat] Mocking response because GEMINI_API_KEY is missing");
+    console.log("[AI Chat] API Key available:", !!apiKey);
+    if (!apiKey || apiKey === "MOCK_KEY") {
+      console.log("[AI Chat] Using MOCK response (API key missing)");
       const lowerMsg = message.toLowerCase();
       let mockResponse = "\u4E86\u89E3\uFF01\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6\u3002\u60A8\u53EF\u4EE5\u554F\u6211\u95DC\u65BC\uFF1A\n\n\u2022 \u9810\u7B97\u82B1\u8CBB\u72C0\u614B\n\u2022 \u6DE8\u8CC7\u7522\u5206\u6790\n\u2022 \u80A1\u7968/\u6295\u8CC7\u7D44\u5408\n\u2022 \u7406\u8CA1\u5EFA\u8B70\n\u2022 \u6216\u4EFB\u4F55\u8CA1\u52D9\u76F8\u95DC\u554F\u984C\n\n\u8ACB\u544A\u8A34\u6211\u6709\u4EC0\u9EBC\u80FD\u5E6B\u52A9\u60A8\u7684\uFF1F";
       const stockSymbols = ["0050", "2330", "2317", "00911", "0056", "2382"];
