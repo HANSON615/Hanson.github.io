@@ -1265,9 +1265,9 @@ export default function App() {
                       </div>
                       <div className={`text-[8px] opacity-50 mt-1 flex gap-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <span>{msg.time}</span>
-                        {msg.isMock !== undefined && (
-                          <span className={msg.isMock ? 'text-amber-300' : 'text-green-300'}>
-                            [{msg.isMock ? '模擬' : '真實 AI'}{msg.note ? `: ${msg.note}` : ''}]
+                        {msg.isMock !== undefined && msg.isMock && (
+                          <span className="text-amber-300">
+                            [模擬]
                           </span>
                         )}
                       </div>
