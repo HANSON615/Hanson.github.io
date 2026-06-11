@@ -82,11 +82,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'ledger' | 'assets' | 'budgets' | 'chat'>('dashboard');
   
   // --- AI Chat States ---
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; text: string; time: string }>>([
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'ai'; text: string; time: string; isMock?: boolean; note?: string }>>([
     {
       role: 'ai',
       text: '您好！我是您的 AI 理財管家 🌿。我可以幫您分析財務狀況、提供預算建議，或回答任何關於記帳的問題。請告訴我有什麼能幫助您的？',
-      time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+      isMock: false
     }
   ]);
   const [chatInput, setChatInput] = useState('');
@@ -510,6 +511,7 @@ export default function App() {
       // 先嘗試用真實 API，如果失敗就用模擬回覆
       let aiResponse = '';
       let isMockResponse = false;
+      let apiNote = '';
       try {
         console.log('[Frontend] Calling /api/ai-chat...');
         const res = await fetch('/api/ai-chat', {
@@ -528,6 +530,7 @@ export default function App() {
           console.log('[Frontend] API Response Data:', data);
           aiResponse = data.response || data.message || '';
           isMockResponse = data.isMock === true;
+          apiNote = data.note || '';
         } else {
           const errorText = await res.text();
           console.error('[Frontend] API Error Response:', errorText);
@@ -538,6 +541,7 @@ export default function App() {
         // 模擬回覆
         aiResponse = generateMockChatResponse(userMessage, financialContext);
         isMockResponse = true;
+        apiNote = '前端本地模擬';
       }
       
       // 加入 AI 回覆
@@ -546,7 +550,9 @@ export default function App() {
       const newAiMessage = {
         role: 'ai' as const,
         text: displayText,
-        time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        isMock: isMockResponse,
+        note: apiNote
       };
       
       setChatMessages(prev => [...prev, newAiMessage]);
@@ -595,6 +601,7 @@ export default function App() {
       // 呼叫真實 AI API
       let aiResponse = '';
       let isMockResponse = false;
+      let apiNote = '';
       try {
         console.log('[Frontend] Calling /api/ai-chat...');
         const res = await fetch('/api/ai-chat', {
@@ -613,6 +620,7 @@ export default function App() {
           console.log('[Frontend] API Response Data:', data);
           aiResponse = data.response || data.message || '';
           isMockResponse = data.isMock === true;
+          apiNote = data.note || '';
         } else {
           const errorText = await res.text();
           console.error('[Frontend] API Error Response:', errorText);
@@ -623,6 +631,7 @@ export default function App() {
         // 如果API失敗，使用模擬回覆作為後備
         aiResponse = generateMockChatResponse(userMessage, financialContext);
         isMockResponse = true;
+        apiNote = '前端本地模擬';
       }
       
       // 加入 AI 回覆
@@ -631,7 +640,9 @@ export default function App() {
       const newAiMsg = {
         role: 'ai' as const,
         text: displayText,
-        time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        isMock: isMockResponse,
+        note: apiNote
       };
       
       setChatMessages(prev => [...prev, newAiMsg]);
@@ -1252,7 +1263,14 @@ export default function App() {
                       }`}>
                         {msg.text}
                       </div>
-                      <div className={`text-[9px] opacity-60 mt-1`}>{msg.time}</div>
+                      <div className={`text-[8px] opacity-50 mt-1 flex gap-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <span>{msg.time}</span>
+                        {msg.isMock !== undefined && (
+                          <span className={msg.isMock ? 'text-amber-300' : 'text-green-300'}>
+                            [{msg.isMock ? '模擬' : '真實 AI'}{msg.note ? `: ${msg.note}` : ''}]
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                   {isChatLoading && (
