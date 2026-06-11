@@ -359,10 +359,9 @@ async function startServer() {
     if (!apiKey || apiKey === "MOCK_KEY") {
       console.log("[AI Chat] Using MOCK response (API key missing)");
       const lowerMsg = message.toLowerCase();
-      let mockResponse = "\u4E86\u89E3\uFF01\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6\u3002\u60A8\u53EF\u4EE5\u554F\u6211\u95DC\u65BC\uFF1A\n\n\u2022 \u9810\u7B97\u82B1\u8CBB\u72C0\u614B\n\u2022 \u6DE8\u8CC7\u7522\u5206\u6790\n\u2022 \u80A1\u7968/\u6295\u8CC7\u7D44\u5408\n\u2022 \u7406\u8CA1\u5EFA\u8B70\n\u2022 \u6216\u4EFB\u4F55\u8CA1\u52D9\u76F8\u95DC\u554F\u984C\n\n\u8ACB\u544A\u8A34\u6211\u6709\u4EC0\u9EBC\u80FD\u5E6B\u52A9\u60A8\u7684\uFF1F";
-      const stockSymbols = ["0050", "2330", "2317", "00911", "0056", "2382"];
+      const stockSymbols = ["0050", "2330", "2317", "00911", "0056", "2382", "2454", "2308", "2881", "2882"];
       const foundSymbols = stockSymbols.filter((symbol) => message.includes(symbol));
-      if (lowerMsg.includes("\u80A1\u7968") || lowerMsg.includes("\u50F9\u683C") || lowerMsg.includes("\u80A1\u50F9") || foundSymbols.length > 0) {
+      if (foundSymbols.length > 0 || lowerMsg.includes("\u80A1\u7968") || lowerMsg.includes("\u50F9\u683C") || lowerMsg.includes("\u80A1\u50F9") || lowerMsg.includes("\u73FE\u5728")) {
         let stockInfo = "";
         if (foundSymbols.length > 0) {
           const symbol = foundSymbols[0];
@@ -407,14 +406,15 @@ async function startServer() {
 
 \u80A1\u7968\u7E3D\u5E02\u503C\uFF1A$${totalStockValue.toLocaleString()} \u5143`;
         }
-        mockResponse = stockInfo || "\u95DC\u65BC\u60A8\u7684\u80A1\u7968\u67E5\u8A62";
+        let mockResponse = stockInfo || "\u95DC\u65BC\u60A8\u7684\u80A1\u7968\u67E5\u8A62";
         if (portfolioInfo) {
           mockResponse += portfolioInfo;
         }
         if (!stockInfo && !portfolioInfo) {
           mockResponse = "\u8ACB\u544A\u8A34\u6211\u60A8\u60F3\u67E5\u8A62\u54EA\u652F\u80A1\u7968\u7684\u50F9\u683C\uFF0C\u6216\u662F\u8A62\u554F\u60A8\u7684\u6295\u8CC7\u7D44\u5408\u72C0\u6CC1\u3002";
         }
-      } else if (lowerMsg.includes("\u5EAB\u5B58") || lowerMsg.includes("\u6295\u8CC7\u7D44\u5408")) {
+        return res.json({ response: mockResponse, isMock: true });
+      } else if (lowerMsg.includes("\u5EAB\u5B58") || lowerMsg.includes("\u6295\u8CC7\u7D44\u5408") || lowerMsg.includes("\u6295\u8CC7")) {
         const stocks = (context?.assets || []).filter((a) => a.type === "stock");
         const otherAssets = (context?.assets || []).filter((a) => a.type !== "stock" && a.type !== "debt");
         const debts = (context?.assets || []).filter((a) => a.type === "debt");
@@ -452,23 +452,28 @@ async function startServer() {
         }
         portfolioResponse += `
 \u6DE8\u8CC7\u7522\uFF1A$${(context?.netWorth || 0).toLocaleString()} \u5143`;
-        mockResponse = portfolioResponse;
+        return res.json({ response: portfolioResponse, isMock: true });
       } else if (lowerMsg.includes("\u9810\u7B97") || lowerMsg.includes("\u82B1\u8CBB")) {
         const totalBudget = (context?.budgets || []).reduce((sum, b) => sum + b.limit, 0);
         const monthlyExpenses = context?.monthlyExpenses || 0;
-        mockResponse = `\u95DC\u65BC\u60A8\u7684\u9810\u7B97\u72C0\u6CC1 \u{1F33F}\uFF1A
+        const mockResponse = `\u95DC\u65BC\u60A8\u7684\u9810\u7B97\u72C0\u6CC1 \u{1F33F}\uFF1A
 
 \u76EE\u524D\u60A8\u8A2D\u5B9A\u4E86 ${(context?.budgets || []).length} \u500B\u9810\u7B97\u985E\u5225\uFF0C\u7E3D\u9810\u7B97\u9650\u984D\u70BA $${totalBudget.toLocaleString()} \u5143\u3002
 
 \u672C\u6708\u5DF2\u82B1\u8CBB $${monthlyExpenses.toLocaleString()} \u5143\uFF0C\u9084\u6709 $${totalBudget - monthlyExpenses >= 0 ? (totalBudget - monthlyExpenses).toLocaleString() + " \u5143\u53EF\u7528" : Math.abs(totalBudget - monthlyExpenses).toLocaleString() + " \u5143\u5DF2\u8D85\u652F"}`;
+        return res.json({ response: mockResponse, isMock: true });
       } else if (lowerMsg.includes("\u6DE8\u503C") || lowerMsg.includes("\u8CC7\u7522")) {
-        mockResponse = `\u60A8\u76EE\u524D\u7684\u6DE8\u8CC7\u7522\u70BA $${(context?.netWorth || 0).toLocaleString()} \u5143 \u{1F4B0}\u3002
+        const mockResponse = `\u60A8\u76EE\u524D\u7684\u6DE8\u8CC7\u7522\u70BA $${(context?.netWorth || 0).toLocaleString()} \u5143 \u{1F4B0}\u3002
 
 \u82E5\u60A8\u6301\u7E8C\u76EE\u524D\u7684\u5132\u84C4\u7FD2\u6163\uFF0C\u9810\u8A08\u53EF\u4EE5${context?.goal?.targetAmount > 0 ? `\u53EF\u4EE5\u5728 ${context?.goal?.deadline || "\u672A\u4F86"}\u9054\u6210\u300C${context?.goal?.title || "\u60A8\u7684\u8CA1\u52D9\u76EE\u6A19"}` : "\u8A2D\u5B9A\u8CA1\u52D9\u76EE\u6A19"}\u3002`;
-      } else if (lowerMsg.includes("\u5EFA\u8B70") || lowerMsg.includes("\u600E\u9EBC")) {
-        mockResponse = "\u9019\u662F\u4E00\u4E9B\u7406\u8CA1\u5C0F\u5EFA\u8B70 \u{1F4A1}\uFF1A\n\n1. \u6301\u7E8C\u8A18\u5E33\uFF0C\u8FFD\u8E64\u6BCF\u4E00\u7B46\u82B1\u8CBB\n2. \u8A2D\u5B9A\u9810\u7B97\u4E26\u56B4\u683C\u57F7\u884C\n3. \u5B9A\u671F\u6AA2\u8996\u8CC7\u7522\u6210\u9577\n4. \u5EFA\u7ACB\u7DCA\u6025\u9810\u5099\u91D1\n\n\u6709\u4EC0\u9EBC\u7279\u5225\u60F3\u4E86\u89E3\u7684\u55CE\uFF1F";
+        return res.json({ response: mockResponse, isMock: true });
+      } else if (lowerMsg.includes("\u5EFA\u8B70") || lowerMsg.includes("\u600E\u9EBC") || lowerMsg.includes("\u7406\u8CA1")) {
+        const mockResponse = "\u9019\u662F\u4E00\u4E9B\u7406\u8CA1\u5C0F\u5EFA\u8B70 \u{1F4A1}\uFF1A\n\n1. \u6301\u7E8C\u8A18\u5E33\uFF0C\u8FFD\u8E64\u6BCF\u4E00\u7B46\u82B1\u8CBB\n2. \u8A2D\u5B9A\u9810\u7B97\u4E26\u56B4\u683C\u57F7\u884C\n3. \u5B9A\u671F\u6AA2\u8996\u8CC7\u7522\u6210\u9577\n4. \u5EFA\u7ACB\u7DCA\u6025\u9810\u5099\u91D1\n\n\u6709\u4EC0\u9EBC\u7279\u5225\u60F3\u4E86\u89E3\u7684\u55CE\uFF1F";
+        return res.json({ response: mockResponse, isMock: true });
+      } else {
+        const mockResponse = "\u60A8\u597D\uFF01\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6 \u{1F33F}\u3002\u60A8\u53EF\u4EE5\u554F\u6211\u95DC\u65BC\uFF1A\n\n\u2022 \u9810\u7B97\u82B1\u8CBB\u72C0\u614B\n\u2022 \u6DE8\u8CC7\u7522\u5206\u6790\n\u2022 \u80A1\u7968\u50F9\u683C (\u5982\uFF1A0050\u30012330)\n\u2022 \u6295\u8CC7\u7D44\u5408\n\u2022 \u7406\u8CA1\u5EFA\u8B70\n\n\u8ACB\u544A\u8A34\u6211\u6709\u4EC0\u9EBC\u80FD\u5E6B\u52A9\u60A8\u7684\uFF1F";
+        return res.json({ response: mockResponse, isMock: true });
       }
-      return res.json({ response: mockResponse, isMock: true });
     }
     try {
       console.log("[AI Chat] Calling REAL Gemini API...");

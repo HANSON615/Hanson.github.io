@@ -476,13 +476,12 @@ async function startServer() {
     if (!apiKey || apiKey === 'MOCK_KEY') {
       console.log("[AI Chat] Using MOCK response (API key missing)");
       const lowerMsg = message.toLowerCase();
-      let mockResponse = '了解！我是您的 AI 理財管家。您可以問我關於：\n\n• 預算花費狀態\n• 淨資產分析\n• 股票/投資組合\n• 理財建議\n• 或任何財務相關問題\n\n請告訴我有什麼能幫助您的？';
       
-      // 檢查股票代號
-      const stockSymbols = ['0050', '2330', '2317', '00911', '0056', '2382'];
+      // 檢查股票代號 (優先級最高)
+      const stockSymbols = ['0050', '2330', '2317', '00911', '0056', '2382', '2454', '2308', '2881', '2882'];
       const foundSymbols = stockSymbols.filter(symbol => message.includes(symbol));
       
-      if (lowerMsg.includes('股票') || lowerMsg.includes('價格') || lowerMsg.includes('股價') || foundSymbols.length > 0) {
+      if (foundSymbols.length > 0 || lowerMsg.includes('股票') || lowerMsg.includes('價格') || lowerMsg.includes('股價') || lowerMsg.includes('現在')) {
         // 先處理股票價格查詢
         let stockInfo = '';
         if (foundSymbols.length > 0) {
@@ -517,14 +516,16 @@ async function startServer() {
           portfolioInfo += `\n\n股票總市值：$${totalStockValue.toLocaleString()} 元`;
         }
         
-        mockResponse = stockInfo || '關於您的股票查詢';
+        let mockResponse = stockInfo || '關於您的股票查詢';
         if (portfolioInfo) {
           mockResponse += portfolioInfo;
         }
         if (!stockInfo && !portfolioInfo) {
           mockResponse = '請告訴我您想查詢哪支股票的價格，或是詢問您的投資組合狀況。';
         }
-      } else if (lowerMsg.includes('庫存') || lowerMsg.includes('投資組合')) {
+        
+        return res.json({ response: mockResponse, isMock: true });
+      } else if (lowerMsg.includes('庫存') || lowerMsg.includes('投資組合') || lowerMsg.includes('投資')) {
         // 處理投資組合查詢
         const stocks = (context?.assets || []).filter((a: any) => a.type === 'stock');
         const otherAssets = (context?.assets || []).filter((a: any) => a.type !== 'stock' && a.type !== 'debt');
@@ -558,18 +559,23 @@ async function startServer() {
         }
         
         portfolioResponse += `\n淨資產：$${(context?.netWorth || 0).toLocaleString()} 元`;
-        mockResponse = portfolioResponse;
+        return res.json({ response: portfolioResponse, isMock: true });
       } else if (lowerMsg.includes('預算') || lowerMsg.includes('花費')) {
         const totalBudget = (context?.budgets || []).reduce((sum: number, b: any) => sum + b.limit, 0);
         const monthlyExpenses = context?.monthlyExpenses || 0;
-        mockResponse = `關於您的預算狀況 🌿：\n\n目前您設定了 ${(context?.budgets || []).length} 個預算類別，總預算限額為 $${totalBudget.toLocaleString()} 元。\n\n本月已花費 $${monthlyExpenses.toLocaleString()} 元，還有 $${totalBudget - monthlyExpenses >= 0 ? (totalBudget - monthlyExpenses).toLocaleString() + ' 元可用' : Math.abs(totalBudget - monthlyExpenses).toLocaleString() + ' 元已超支'}`;
+        const mockResponse = `關於您的預算狀況 🌿：\n\n目前您設定了 ${(context?.budgets || []).length} 個預算類別，總預算限額為 $${totalBudget.toLocaleString()} 元。\n\n本月已花費 $${monthlyExpenses.toLocaleString()} 元，還有 $${totalBudget - monthlyExpenses >= 0 ? (totalBudget - monthlyExpenses).toLocaleString() + ' 元可用' : Math.abs(totalBudget - monthlyExpenses).toLocaleString() + ' 元已超支'}`;
+        return res.json({ response: mockResponse, isMock: true });
       } else if (lowerMsg.includes('淨值') || lowerMsg.includes('資產')) {
-        mockResponse = `您目前的淨資產為 $${(context?.netWorth || 0).toLocaleString()} 元 💰。\n\n若您持續目前的儲蓄習慣，預計可以${context?.goal?.targetAmount > 0 ? `可以在 ${context?.goal?.deadline || '未來'}達成「${context?.goal?.title || '您的財務目標'}` : '設定財務目標'}。`;
-      } else if (lowerMsg.includes('建議') || lowerMsg.includes('怎麼')) {
-        mockResponse = '這是一些理財小建議 💡：\n\n1. 持續記帳，追蹤每一筆花費\n2. 設定預算並嚴格執行\n3. 定期檢視資產成長\n4. 建立緊急預備金\n\n有什麼特別想了解的嗎？';
+        const mockResponse = `您目前的淨資產為 $${(context?.netWorth || 0).toLocaleString()} 元 💰。\n\n若您持續目前的儲蓄習慣，預計可以${context?.goal?.targetAmount > 0 ? `可以在 ${context?.goal?.deadline || '未來'}達成「${context?.goal?.title || '您的財務目標'}` : '設定財務目標'}。`;
+        return res.json({ response: mockResponse, isMock: true });
+      } else if (lowerMsg.includes('建議') || lowerMsg.includes('怎麼') || lowerMsg.includes('理財')) {
+        const mockResponse = '這是一些理財小建議 💡：\n\n1. 持續記帳，追蹤每一筆花費\n2. 設定預算並嚴格執行\n3. 定期檢視資產成長\n4. 建立緊急預備金\n\n有什麼特別想了解的嗎？';
+        return res.json({ response: mockResponse, isMock: true });
+      } else {
+        // 預設回應 - 提供更多選項
+        const mockResponse = '您好！我是您的 AI 理財管家 🌿。您可以問我關於：\n\n• 預算花費狀態\n• 淨資產分析\n• 股票價格 (如：0050、2330)\n• 投資組合\n• 理財建議\n\n請告訴我有什麼能幫助您的？';
+        return res.json({ response: mockResponse, isMock: true });
       }
-      
-      return res.json({ response: mockResponse, isMock: true });
     }
 
     try {
