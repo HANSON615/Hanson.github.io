@@ -29,9 +29,13 @@ var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_axios = __toESM(require("axios"), 1);
 import_dotenv.default.config();
-var GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 var GEMINI_MODEL = "gemini-1.5-flash";
 var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+function getApiKey() {
+  const key = process.env.GEMINI_API_KEY;
+  console.log("[Env Check] GEMINI_API_KEY from env:", key ? "Loaded (length: " + key.length + ")" : "NOT FOUND!");
+  return key;
+}
 async function startServer() {
   console.log("[Server] Starting server...");
   console.log("[Server] Environment variables:", Object.keys(process.env).filter((k) => !k.includes("KEY") && !k.includes("SECRET")));
@@ -109,7 +113,11 @@ async function startServer() {
 \u4F7F\u7528\u8005\u8F38\u5165: "${text}"
 
 \u8ACB\u53EA\u56DE\u50B3 JSON \u683C\u5F0F\uFF0C\u4E0D\u8981\u6709\u5176\u4ED6\u6587\u5B57\u3002`;
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey2 = getApiKey();
+      if (!apiKey2) {
+        throw new Error("API Key not available");
+      }
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey2}`, {
         contents: [{
           role: "user",
           parts: [{ text: prompt }]
@@ -211,7 +219,11 @@ async function startServer() {
 5. goalFeedback: \u6839\u64DA\u76EE\u524D\u7684\u6D88\u8CBB\u901F\u5EA6\uFF0C\u9054\u6210\u300C${goals?.title || "\u9577\u671F\u76EE\u6A19"}\u300D\u7684\u771F\u5BE6\u53EF\u80FD\u6027\u8207\u9032\u5EA6\u5206\u6790\u3002
 
 \u8ACB\u53EA\u56DE\u50B3 JSON \u683C\u5F0F\uFF0C\u4E0D\u8981\u6709\u5176\u4ED6\u6587\u5B57\u3002`;
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey2 = getApiKey();
+      if (!apiKey2) {
+        throw new Error("API Key not available");
+      }
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey2}`, {
         contents: [{
           role: "user",
           parts: [{ text: prompt }]
@@ -233,9 +245,11 @@ async function startServer() {
   });
   app.post("/api/ai-chat", async (req, res) => {
     const { message, context } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
+    console.log("[AI Chat] ========================================");
     console.log("[AI Chat] Received message:", message);
     console.log("[AI Chat] API Key available:", !!apiKey);
+    console.log("[AI Chat] ========================================");
     if (!apiKey || apiKey === "MOCK_KEY") {
       console.log("[AI Chat] Using MOCK response (API key missing)");
       const lowerMsg = message.toLowerCase();
@@ -368,7 +382,11 @@ async function startServer() {
 
 \u8ACB\u6839\u64DA\u4E0A\u8FF0\u8CA1\u52D9\u6578\u64DA\uFF0C\u7D66\u4E88\u89AA\u5207\u3001\u5C08\u696D\u4E14\u5177\u9AD4\u7684\u56DE\u8986\u3002`;
       console.log("[AI Chat] Sending request to Gemini API...");
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey2 = getApiKey();
+      if (!apiKey2) {
+        throw new Error("API Key not available");
+      }
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey2}`, {
         contents: [{
           role: "user",
           parts: [{ text: prompt }]

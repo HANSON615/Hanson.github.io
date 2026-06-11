@@ -8,9 +8,15 @@ import axios from 'axios';
 
 dotenv.config();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = 'gemini-1.5-flash';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+
+// 每次都重新讀取環境變量（確保 Railway 上的設置能被讀到）
+function getApiKey() {
+  const key = process.env.GEMINI_API_KEY;
+  console.log("[Env Check] GEMINI_API_KEY from env:", key ? "Loaded (length: " + key.length + ")" : "NOT FOUND!");
+  return key;
+}
 
 // Lazy initializing Gemini Client
 let aiClient: GoogleGenAI | null = null;
@@ -129,7 +135,12 @@ async function startServer() {
 
 請只回傳 JSON 格式，不要有其他文字。`;
 
-      const response = await axios.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        throw new Error("API Key not available");
+      }
+      
+      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
           role: 'user',
           parts: [{ text: prompt }]
@@ -267,7 +278,12 @@ async function startServer() {
 
 請只回傳 JSON 格式，不要有其他文字。`;
 
-      const response = await axios.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        throw new Error("API Key not available");
+      }
+      
+      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
           role: 'user',
           parts: [{ text: prompt }]
@@ -293,10 +309,12 @@ async function startServer() {
   // API Route: AI Chat for Financial Advisor
   app.post('/api/ai-chat', async (req, res) => {
     const { message, context } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
 
+    console.log("[AI Chat] ========================================");
     console.log("[AI Chat] Received message:", message);
     console.log("[AI Chat] API Key available:", !!apiKey);
+    console.log("[AI Chat] ========================================");
 
     if (!apiKey || apiKey === 'MOCK_KEY') {
       console.log("[AI Chat] Using MOCK response (API key missing)");
@@ -418,7 +436,12 @@ async function startServer() {
 
       console.log("[AI Chat] Sending request to Gemini API...");
       
-      const response = await axios.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        throw new Error("API Key not available");
+      }
+      
+      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
           role: 'user',
           parts: [{ text: prompt }]
