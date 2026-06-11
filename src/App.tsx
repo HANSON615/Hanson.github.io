@@ -473,7 +473,9 @@ export default function App() {
       // 呼叫 AI 回覆（模擬或真實 API
       // 先嘗試用真實 API，如果失敗就用模擬回覆
       let aiResponse = '';
+      let isMockResponse = false;
       try {
+        console.log('[Frontend] Calling /api/ai-chat...');
         const res = await fetch('/api/ai-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -483,21 +485,33 @@ export default function App() {
           })
         });
         
+        console.log('[Frontend] API Response Status:', res.status);
+        
         if (res.ok) {
           const data = await res.json();
+          console.log('[Frontend] API Response Data:', data);
           aiResponse = data.response || data.message || '';
+          isMockResponse = data.isMock === true;
         } else {
-          throw new Error('API 失敗');
+          const errorText = await res.text();
+          console.error('[Frontend] API Error Response:', errorText);
+          throw new Error('API 失敗: ' + res.status);
         }
-      } catch {
+      } catch (error) {
+        console.error('[Frontend] API Call Failed:', error);
         // 模擬回覆
         aiResponse = generateMockChatResponse(userMessage, financialContext);
+        isMockResponse = true;
       }
       
       // 加入 AI 回覆
+      const displayText = isMockResponse 
+        ? aiResponse + '\n\n⚠️ [模擬回覆 - 請確認 API Key 設置]'
+        : aiResponse;
+      
       const newAiMessage = {
         role: 'ai' as const,
-        text: aiResponse,
+        text: displayText,
         time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
       };
       
@@ -546,8 +560,9 @@ export default function App() {
       
       // 呼叫真實 AI API
       let aiResponse = '';
+      let isMockResponse = false;
       try {
-        console.log('正在呼叫 AI API...');
+        console.log('[Frontend] Calling /api/ai-chat...');
         const res = await fetch('/api/ai-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -557,27 +572,33 @@ export default function App() {
           })
         });
         
-        console.log('API 回應狀態:', res.status);
+        console.log('[Frontend] API Response Status:', res.status);
         
         if (res.ok) {
           const data = await res.json();
-          console.log('API 回應數據:', data);
+          console.log('[Frontend] API Response Data:', data);
           aiResponse = data.response || data.message || '';
+          isMockResponse = data.isMock === true;
         } else {
           const errorText = await res.text();
-          console.log('API 錯誤回應:', errorText);
-          throw new Error('API 失敗');
+          console.error('[Frontend] API Error Response:', errorText);
+          throw new Error('API 失敗: ' + res.status);
         }
       } catch (error) {
-        console.log('API 呼叫失敗，使用模擬回覆:', error);
+        console.error('[Frontend] API Call Failed:', error);
         // 如果API失敗，使用模擬回覆作為後備
         aiResponse = generateMockChatResponse(userMessage, financialContext);
+        isMockResponse = true;
       }
       
       // 加入 AI 回覆
+      const displayText = isMockResponse 
+        ? aiResponse + '\n\n⚠️ [模擬回覆 - 請確認 API Key 設置]'
+        : aiResponse;
+      
       const newAiMsg = {
         role: 'ai' as const,
-        text: aiResponse,
+        text: displayText,
         time: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
       };
       
