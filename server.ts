@@ -302,29 +302,21 @@ async function startServer() {
         let stockInfo = '';
         if (foundSymbols.length > 0) {
           const symbol = foundSymbols[0];
-          // 使用我們的股票 API 來查詢價格
-          try {
-            const stockRes = await axios.post('http://localhost:3000/api/stock-price', { symbol });
-            if (stockRes.data && stockRes.data.price) {
-              stockInfo = `根據最新數據，${symbol} 的股價為 $${stockRes.data.price.toLocaleString()} 元。`;
-            }
-          } catch (e) {
-            // 如果股票 API 失敗，使用已知價格
-            const knownPrices: Record<string, number> = {
-              '0050': 99.85,   // 元大台灣50 (2026年6月11日實際價格)
-              '2330': 2250.00, // 台積電 (2026年6月11日實際價格)
-              '2317': 258.50,  // 鴻海 (2026年6月11日實際價格)
-              '00911': 59.00,  // 兆豐洲際半導體 (2026年6月11日實際價格)
-              '0056': 49.59,   // 元大高股息 (2026年6月11日實際價格)
-              '2382': 980.00,  // 廣達 (備用)
-              '2454': 1450.00, // 聯發科 (備用)
-              '2308': 420.00,  // 台達電 (備用)
-              '2881': 95.00,   // 富邦金 (備用)
-              '2882': 72.00    // 國泰金 (備用)
-            };
-            if (knownPrices[symbol]) {
-              stockInfo = `根據最新數據，${symbol} 的股價為 $${knownPrices[symbol].toLocaleString()} 元。`;
-            }
+          // 使用本地備援價格（避免 HTTP 請求自己）
+          const knownPrices: Record<string, number> = {
+            '0050': 99.85,   // 元大台灣50 (2026年6月11日實際價格)
+            '2330': 2250.00, // 台積電 (2026年6月11日實際價格)
+            '2317': 258.50,  // 鴻海 (2026年6月11日實際價格)
+            '00911': 59.00,  // 兆豐洲際半導體 (2026年6月11日實際價格)
+            '0056': 49.59,   // 元大高股息 (2026年6月11日實際價格)
+            '2382': 980.00,  // 廣達 (備用)
+            '2454': 1450.00, // 聯發科 (備用)
+            '2308': 420.00,  // 台達電 (備用)
+            '2881': 95.00,   // 富邦金 (備用)
+            '2882': 72.00    // 國泰金 (備用)
+          };
+          if (knownPrices[symbol]) {
+            stockInfo = `根據最新數據，${symbol} 的股價為 $${knownPrices[symbol].toLocaleString()} 元。`;
           }
         }
         
