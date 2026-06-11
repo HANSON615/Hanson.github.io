@@ -452,7 +452,7 @@ async function startServer() {
         }
         portfolioResponse += `
 \u6DE8\u8CC7\u7522\uFF1A$${(context?.netWorth || 0).toLocaleString()} \u5143`;
-        return res.json({ response: portfolioResponse, isMock: true });
+        return res.json({ response: portfolioResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes("\u9810\u7B97") || lowerMsg.includes("\u82B1\u8CBB")) {
         const totalBudget = (context?.budgets || []).reduce((sum, b) => sum + b.limit, 0);
         const monthlyExpenses = context?.monthlyExpenses || 0;
@@ -461,18 +461,18 @@ async function startServer() {
 \u76EE\u524D\u60A8\u8A2D\u5B9A\u4E86 ${(context?.budgets || []).length} \u500B\u9810\u7B97\u985E\u5225\uFF0C\u7E3D\u9810\u7B97\u9650\u984D\u70BA $${totalBudget.toLocaleString()} \u5143\u3002
 
 \u672C\u6708\u5DF2\u82B1\u8CBB $${monthlyExpenses.toLocaleString()} \u5143\uFF0C\u9084\u6709 $${totalBudget - monthlyExpenses >= 0 ? (totalBudget - monthlyExpenses).toLocaleString() + " \u5143\u53EF\u7528" : Math.abs(totalBudget - monthlyExpenses).toLocaleString() + " \u5143\u5DF2\u8D85\u652F"}`;
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes("\u6DE8\u503C") || lowerMsg.includes("\u8CC7\u7522")) {
         const mockResponse = `\u60A8\u76EE\u524D\u7684\u6DE8\u8CC7\u7522\u70BA $${(context?.netWorth || 0).toLocaleString()} \u5143 \u{1F4B0}\u3002
 
 \u82E5\u60A8\u6301\u7E8C\u76EE\u524D\u7684\u5132\u84C4\u7FD2\u6163\uFF0C\u9810\u8A08\u53EF\u4EE5${context?.goal?.targetAmount > 0 ? `\u53EF\u4EE5\u5728 ${context?.goal?.deadline || "\u672A\u4F86"}\u9054\u6210\u300C${context?.goal?.title || "\u60A8\u7684\u8CA1\u52D9\u76EE\u6A19"}` : "\u8A2D\u5B9A\u8CA1\u52D9\u76EE\u6A19"}\u3002`;
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes("\u5EFA\u8B70") || lowerMsg.includes("\u600E\u9EBC") || lowerMsg.includes("\u7406\u8CA1")) {
         const mockResponse = "\u9019\u662F\u4E00\u4E9B\u7406\u8CA1\u5C0F\u5EFA\u8B70 \u{1F4A1}\uFF1A\n\n1. \u6301\u7E8C\u8A18\u5E33\uFF0C\u8FFD\u8E64\u6BCF\u4E00\u7B46\u82B1\u8CBB\n2. \u8A2D\u5B9A\u9810\u7B97\u4E26\u56B4\u683C\u57F7\u884C\n3. \u5B9A\u671F\u6AA2\u8996\u8CC7\u7522\u6210\u9577\n4. \u5EFA\u7ACB\u7DCA\u6025\u9810\u5099\u91D1\n\n\u6709\u4EC0\u9EBC\u7279\u5225\u60F3\u4E86\u89E3\u7684\u55CE\uFF1F";
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else {
         const mockResponse = "\u60A8\u597D\uFF01\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6 \u{1F33F}\u3002\u60A8\u53EF\u4EE5\u554F\u6211\u95DC\u65BC\uFF1A\n\n\u2022 \u9810\u7B97\u82B1\u8CBB\u72C0\u614B\n\u2022 \u6DE8\u8CC7\u7522\u5206\u6790\n\u2022 \u80A1\u7968\u50F9\u683C (\u5982\uFF1A0050\u30012330)\n\u2022 \u6295\u8CC7\u7D44\u5408\n\u2022 \u7406\u8CA1\u5EFA\u8B70\n\n\u8ACB\u544A\u8A34\u6211\u6709\u4EC0\u9EBC\u80FD\u5E6B\u52A9\u60A8\u7684\uFF1F";
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       }
     }
     try {
@@ -480,7 +480,7 @@ async function startServer() {
       console.log("[AI Chat] API Key check:", apiKey2 ? "Available" : "NOT Available");
       if (!apiKey2) {
         console.log("[AI Chat] No API Key, skipping real API call");
-        throw new Error("API Key not available");
+        throw new Error("API Key not available in environment variables");
       }
       console.log("[AI Chat] Calling REAL Gemini API...");
       const prompt = `\u60A8\u662F\u4E00\u4F4D\u65E2\u5C08\u696D\u53C8\u89AA\u5207\u7684\u300CAI \u7406\u8CA1\u7BA1\u5BB6\u300D\u3002\u8ACB\u7528\u53F0\u7063\u7E41\u9AD4\u4E2D\u6587\u56DE\u8986\u4F7F\u7528\u8005\u7684\u554F\u984C\u3002
@@ -508,13 +508,20 @@ async function startServer() {
       });
       console.log("[AI Chat] Gemini API response received!");
       console.log("[AI Chat] Response status:", response.status);
-      console.log("[AI Chat] Response data:", JSON.stringify(response.data, null, 2));
       const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "\u62B1\u6B49\uFF0C\u6211\u73FE\u5728\u6709\u9EDE\u5FD9\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u8A66 \u{1F33F}";
       console.log("[AI Chat] AI Response prepared:", aiResponse);
       res.json({ response: aiResponse, isMock: false });
     } catch (e) {
-      console.error("[AI Chat] REAL API ERROR:", e?.response?.data || e?.message || e);
-      console.error("[AI Chat] Falling back to smart mock response due to error");
+      console.error("[AI Chat] ========================================");
+      console.error("[AI Chat] REAL API ERROR!");
+      console.error("[AI Chat] Error message:", e?.message || "Unknown error");
+      if (e?.response) {
+        console.error("[AI Chat] Response status:", e.response.status);
+        console.error("[AI Chat] Response data:", JSON.stringify(e.response.data, null, 2));
+      }
+      console.error("[AI Chat] ========================================");
+      const errorDetails2 = e?.response?.data?.error?.message || e?.message || "Unknown API error";
+      console.error("[AI Chat] Falling back to smart mock response due to error:", errorDetails2);
       const lowerMsg = message.toLowerCase();
       const stockSymbols = ["0050", "2330", "2317", "00911", "0056", "2382", "2454", "2308", "2881", "2882"];
       const foundSymbols = stockSymbols.filter((symbol) => message.includes(symbol));
@@ -570,7 +577,7 @@ async function startServer() {
         if (!stockInfo && !portfolioInfo) {
           fallbackResponse = "\u8ACB\u544A\u8A34\u6211\u60A8\u60F3\u67E5\u8A62\u54EA\u652F\u80A1\u7968\u7684\u50F9\u683C\uFF0C\u6216\u662F\u8A62\u554F\u60A8\u7684\u6295\u8CC7\u7D44\u5408\u72C0\u6CC1\u3002";
         }
-        return res.json({ response: fallbackResponse, isMock: true, note: "API failed, using stock fallback" });
+        return res.json({ response: fallbackResponse, isMock: true, note: `API Error: ${errorDetails2.substring(0, 100)}...` });
       } else if (lowerMsg.includes("\u5EAB\u5B58") || lowerMsg.includes("\u6295\u8CC7\u7D44\u5408") || lowerMsg.includes("\u6295\u8CC7")) {
         const stocks = (context?.assets || []).filter((a) => a.type === "stock");
         const otherAssets = (context?.assets || []).filter((a) => a.type !== "stock" && a.type !== "debt");

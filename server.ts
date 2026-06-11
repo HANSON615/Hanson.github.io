@@ -559,22 +559,22 @@ async function startServer() {
         }
         
         portfolioResponse += `\n淨資產：$${(context?.netWorth || 0).toLocaleString()} 元`;
-        return res.json({ response: portfolioResponse, isMock: true });
+        return res.json({ response: portfolioResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes('預算') || lowerMsg.includes('花費')) {
         const totalBudget = (context?.budgets || []).reduce((sum: number, b: any) => sum + b.limit, 0);
         const monthlyExpenses = context?.monthlyExpenses || 0;
         const mockResponse = `關於您的預算狀況 🌿：\n\n目前您設定了 ${(context?.budgets || []).length} 個預算類別，總預算限額為 $${totalBudget.toLocaleString()} 元。\n\n本月已花費 $${monthlyExpenses.toLocaleString()} 元，還有 $${totalBudget - monthlyExpenses >= 0 ? (totalBudget - monthlyExpenses).toLocaleString() + ' 元可用' : Math.abs(totalBudget - monthlyExpenses).toLocaleString() + ' 元已超支'}`;
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes('淨值') || lowerMsg.includes('資產')) {
         const mockResponse = `您目前的淨資產為 $${(context?.netWorth || 0).toLocaleString()} 元 💰。\n\n若您持續目前的儲蓄習慣，預計可以${context?.goal?.targetAmount > 0 ? `可以在 ${context?.goal?.deadline || '未來'}達成「${context?.goal?.title || '您的財務目標'}` : '設定財務目標'}。`;
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes('建議') || lowerMsg.includes('怎麼') || lowerMsg.includes('理財')) {
         const mockResponse = '這是一些理財小建議 💡：\n\n1. 持續記帳，追蹤每一筆花費\n2. 設定預算並嚴格執行\n3. 定期檢視資產成長\n4. 建立緊急預備金\n\n有什麼特別想了解的嗎？';
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else {
         // 預設回應 - 提供更多選項
         const mockResponse = '您好！我是您的 AI 理財管家 🌿。您可以問我關於：\n\n• 預算花費狀態\n• 淨資產分析\n• 股票價格 (如：0050、2330)\n• 投資組合\n• 理財建議\n\n請告訴我有什麼能幫助您的？';
-        return res.json({ response: mockResponse, isMock: true });
+        return res.json({ response: mockResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       }
     }
 
@@ -584,7 +584,7 @@ async function startServer() {
       
       if (!apiKey) {
         console.log("[AI Chat] No API Key, skipping real API call");
-        throw new Error("API Key not available");
+        throw new Error("API Key not available in environment variables");
       }
       
       console.log("[AI Chat] Calling REAL Gemini API...");
@@ -617,7 +617,6 @@ async function startServer() {
 
       console.log("[AI Chat] Gemini API response received!");
       console.log("[AI Chat] Response status:", response.status);
-      console.log("[AI Chat] Response data:", JSON.stringify(response.data, null, 2));
       
       const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '抱歉，我現在有點忙，請稍後再試試 🌿';
       
@@ -625,8 +624,17 @@ async function startServer() {
       
       res.json({ response: aiResponse, isMock: false });
     } catch (e: any) {
-      console.error("[AI Chat] REAL API ERROR:", e?.response?.data || e?.message || e);
-      console.error("[AI Chat] Falling back to smart mock response due to error");
+      console.error("[AI Chat] ========================================");
+      console.error("[AI Chat] REAL API ERROR!");
+      console.error("[AI Chat] Error message:", e?.message || "Unknown error");
+      if (e?.response) {
+        console.error("[AI Chat] Response status:", e.response.status);
+        console.error("[AI Chat] Response data:", JSON.stringify(e.response.data, null, 2));
+      }
+      console.error("[AI Chat] ========================================");
+      
+      const errorDetails = e?.response?.data?.error?.message || e?.message || "Unknown API error";
+      console.error("[AI Chat] Falling back to smart mock response due to error:", errorDetails);
       
       // 如果真的 API 失敗，還是給用戶一個智能回覆
       const lowerMsg = message.toLowerCase();
@@ -678,7 +686,7 @@ async function startServer() {
           fallbackResponse = '請告訴我您想查詢哪支股票的價格，或是詢問您的投資組合狀況。';
         }
         
-        return res.json({ response: fallbackResponse, isMock: true, note: 'API failed, using stock fallback' });
+        return res.json({ response: fallbackResponse, isMock: true, note: `API Error: ${errorDetails.substring(0, 100)}...` });
       } else if (lowerMsg.includes('庫存') || lowerMsg.includes('投資組合') || lowerMsg.includes('投資')) {
         // 處理投資組合查詢
         const stocks = (context?.assets || []).filter((a: any) => a.type === 'stock');
