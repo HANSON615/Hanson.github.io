@@ -254,16 +254,16 @@ async function startServer() {
       const randomTip = randomTips[Math.floor(Math.random() * randomTips.length)];
       const summary = transactions.length > 0 ? `\u89AA\u611B\u7684\u4E3B\u4EBA\uFF0C\u5206\u6790\u986F\u793A\u60A8\u76EE\u524D\u7684\u7E3D\u652F\u51FA\u70BA $${totalExpense.toLocaleString()} \u5143\u3002\u5176\u4E2D\u5728\u300C${topCategory ? topCategory[0] : "\u672A\u5206\u985E"}\u300D\u7684\u82B1\u8CBB\u6700\u9AD8\uFF0C\u4F54\u4E86\u7E3D\u652F\u51FA\u7684 ${topCategory ? Math.round(topCategory[1] / totalExpense * 100) : 0}%\u3002\u76EE\u524D\u7684\u6D88\u8CBB\u6A21\u5F0F\u986F\u793A\u60A8\u5728${topCategory ? topCategory[0] : "\u5404\u9805"}\u652F\u51FA\u8F03\u70BA\u96C6\u4E2D\uFF0C\u5EFA\u8B70\u6301\u7E8C\u8FFD\u8E64\u3002` : "\u60A8\u597D\uFF01\u76EE\u524D\u5E33\u7C3F\u7A7A\u7A7A\u7684\uFF0C\u671F\u5F85\u60A8\u7D00\u9304\u4E0B\u7B2C\u4E00\u7B46\u751F\u6D3B\u9EDE\u6EF4\u3002";
       return res.json({
-        warning,
+        warning: warning || "",
         suggestions: transactions.length > 0 ? [
           `\u60A8\u672C\u6708\u6700\u5927\u7684\u958B\u92B7\u4F86\u6E90\u662F\u300C${topCategory ? topCategory[0] : "\u7121"}\u300D\uFF0C\u91D1\u984D\u70BA $${topCategory ? topCategory[1].toLocaleString() : 0} \u5143\u3002`,
           totalIncome > totalExpense ? "\u672C\u6708\u76EE\u524D\u8655\u65BC\u76C8\u9918\u72C0\u614B\uFF0C\u5EFA\u8B70\u53EF\u4EE5\u8003\u616E\u589E\u52A0\u6295\u8CC7\u6BD4\u4F8B\u3002" : "\u672C\u6708\u652F\u51FA\u8F03\u9AD8\uFF0C\u5EFA\u8B70\u6AA2\u8996\u662F\u5426\u6709\u975E\u5FC5\u8981\u958B\u652F\u3002",
           randomTip
         ] : ["\u9EDE\u64CA\u300CAI \u8A18\u5E33\u300D\u6216\u300C\u624B\u52D5\u65B0\u589E\u300D\u4F86\u958B\u59CB\u7D00\u9304\u60A8\u7684\u7B2C\u4E00\u7B46\u6D88\u8CBB\u3002", "\u60A8\u53EF\u4EE5\u5148\u5728\u300C\u9650\u984D\u9810\u7B97\u300D\u5206\u9801\u8A2D\u5B9A\u5404\u985E\u5225\u7684\u652F\u51FA\u4E0A\u9650\u3002"],
-        summary,
-        subscriptionAlerts: transactions.filter((t) => t.type === "subscription").map(
+        summary: summary || "",
+        subscriptionAlerts: Array.isArray(transactions) ? transactions.filter((t) => t.type === "subscription").map(
           (t) => `${t.merchant || t.category} \u7684\u8A02\u95B1\u8CBB\u7528 $${t.amount} \u5C07\u5B9A\u671F\u6263\u6B3E\uFF0C\u8ACB\u78BA\u4FDD\u9019\u662F\u60A8\u6301\u7E8C\u9700\u8981\u7684\u670D\u52D9\u3002`
-        ),
+        ) : [],
         goalFeedback: `\u6839\u64DA\u76EE\u524D\u7684\u6DE8\u8CC7\u7522 $${(req.body.assets || []).reduce((s, a) => s + (a.type === "debt" ? -a.amount : a.amount), 0).toLocaleString()} \u5143\uFF0C\u8DDD\u96E2\u60A8\u7684\u300C${goals?.title || "\u76EE\u6A19"}\u300D\u9054\u6210\u7387\u5DF2\u5728\u8A08\u7B97\u4E2D\u3002`
       });
     };
@@ -312,7 +312,13 @@ async function startServer() {
         throw new Error("No response from Gemini API for Advisor");
       }
       const result = JSON.parse(parsedText);
-      res.json(result);
+      res.json({
+        warning: result.warning || "",
+        suggestions: Array.isArray(result.suggestions) ? result.suggestions : ["\u9EDE\u64CA\u300CAI \u8A18\u5E33\u300D\u6216\u300C\u624B\u52D5\u65B0\u589E\u300D\u4F86\u958B\u59CB\u7D00\u9304\u60A8\u7684\u7B2C\u4E00\u7B46\u6D88\u8CBB\u3002"],
+        summary: result.summary || "",
+        subscriptionAlerts: Array.isArray(result.subscriptionAlerts) ? result.subscriptionAlerts : [],
+        goalFeedback: result.goalFeedback || ""
+      });
     } catch (e) {
       console.error("[AI Advisor] Gemini API Error:", e?.response?.data || e?.message || e);
       console.log("[AI Advisor] Falling back to MOCK response due to API failure");

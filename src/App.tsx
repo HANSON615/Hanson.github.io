@@ -1761,7 +1761,7 @@ export default function App() {
                   </p>
 
                   <div className="space-y-3">
-                    {advisorReport?.subscriptionAlerts && advisorReport.subscriptionAlerts.map((alert, idx) => (
+                    {Array.isArray(advisorReport?.subscriptionAlerts) && advisorReport.subscriptionAlerts.map((alert, idx) => (
                       <div key={idx} className="p-3 bg-rose-50 border border-rose-100 text-[11px] text-rose-800 rounded-xl leading-relaxed">
                         <div className="flex gap-1.5">
                           <Bell className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />

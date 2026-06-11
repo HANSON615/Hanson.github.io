@@ -327,16 +327,16 @@ async function startServer() {
         : "您好！目前帳簿空空的，期待您紀錄下第一筆生活點滴。";
 
       return res.json({
-        warning,
+        warning: warning || "",
         suggestions: transactions.length > 0 ? [
           `您本月最大的開銷來源是「${topCategory ? topCategory[0] : '無'}」，金額為 $${topCategory ? topCategory[1].toLocaleString() : 0} 元。`,
           totalIncome > totalExpense ? "本月目前處於盈餘狀態，建議可以考慮增加投資比例。" : "本月支出較高，建議檢視是否有非必要開支。",
           randomTip
         ] : ["點擊「AI 記帳」或「手動新增」來開始紀錄您的第一筆消費。", "您可以先在「限額預算」分頁設定各類別的支出上限。"],
-        summary,
-        subscriptionAlerts: transactions.filter((t: any) => t.type === 'subscription').map((t: any) => 
+        summary: summary || "",
+        subscriptionAlerts: Array.isArray(transactions) ? transactions.filter((t: any) => t.type === 'subscription').map((t: any) => 
           `${t.merchant || t.category} 的訂閱費用 $${t.amount} 將定期扣款，請確保這是您持續需要的服務。`
-        ),
+        ) : [],
         goalFeedback: `根據目前的淨資產 $${(req.body.assets || []).reduce((s: number, a: any) => s + (a.type === 'debt' ? -a.amount : a.amount), 0).toLocaleString()} 元，距離您的「${goals?.title || '目標'}」達成率已在計算中。`
       });
     };
@@ -391,7 +391,14 @@ async function startServer() {
       }
 
       const result = JSON.parse(parsedText);
-      res.json(result);
+      // 確保所有必要欄位都存在且有預設值
+      res.json({
+        warning: result.warning || "",
+        suggestions: Array.isArray(result.suggestions) ? result.suggestions : ["點擊「AI 記帳」或「手動新增」來開始紀錄您的第一筆消費。"],
+        summary: result.summary || "",
+        subscriptionAlerts: Array.isArray(result.subscriptionAlerts) ? result.subscriptionAlerts : [],
+        goalFeedback: result.goalFeedback || ""
+      });
     } catch (e: any) {
       console.error("[AI Advisor] Gemini API Error:", e?.response?.data || e?.message || e);
       console.log("[AI Advisor] Falling back to MOCK response due to API failure");
