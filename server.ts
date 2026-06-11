@@ -196,8 +196,27 @@ async function startServer() {
           type = 'income';
         }
 
+        // 智能提取金額：找到所有數字，優先取跟「元」或「$」有關的，否則取最大的數字
+        let amount = 0;
+        const allNumbers = part.match(/\d+/g)?.map(Number) || [];
+        
+        if (allNumbers.length > 0) {
+          // 1. 優先找跟「元」或「$」有關的數字
+          const yuanMatch = part.match(/(\d+)\s*元/);
+          const dollarMatch = part.match(/\$?(\d+)/);
+          
+          if (yuanMatch && yuanMatch[1]) {
+            amount = Number(yuanMatch[1]);
+          } else if (dollarMatch && dollarMatch[1]) {
+            amount = Number(dollarMatch[1]);
+          } else {
+            // 2. 如果有多個數字，取最大的（因為金額通常比日期、數量等大）
+            amount = Math.max(...allNumbers);
+          }
+        }
+
         return {
-          amount: part.match(/\d+/) ? Number(part.match(/\d+/)![0]) : 0,
+          amount: amount,
           type: type,
           category: category,
           location: lowerText.includes('逢甲') ? '逢甲' : undefined,

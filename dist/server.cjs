@@ -159,8 +159,21 @@ async function startServer() {
           category = "\u85AA\u8CC7\u6240\u5F97";
           type = "income";
         }
+        let amount = 0;
+        const allNumbers = part.match(/\d+/g)?.map(Number) || [];
+        if (allNumbers.length > 0) {
+          const yuanMatch = part.match(/(\d+)\s*元/);
+          const dollarMatch = part.match(/\$?(\d+)/);
+          if (yuanMatch && yuanMatch[1]) {
+            amount = Number(yuanMatch[1]);
+          } else if (dollarMatch && dollarMatch[1]) {
+            amount = Number(dollarMatch[1]);
+          } else {
+            amount = Math.max(...allNumbers);
+          }
+        }
         return {
-          amount: part.match(/\d+/) ? Number(part.match(/\d+/)[0]) : 0,
+          amount,
           type,
           category,
           location: lowerText.includes("\u9022\u7532") ? "\u9022\u7532" : void 0,
