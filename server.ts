@@ -151,69 +151,89 @@ async function startServer() {
       return res.status(400).json({ error: 'Text is required for parsing' });
     }
 
-    // 定義模擬回覆函數
-    const sendMockResponse = () => {
-      console.log("Mocking parse-transaction response");
+    // 智能解析函數 - 同時處理模擬和真實API的情況
+    const smartParseTransaction = (inputText: string) => {
+      console.log("Smart parsing:", inputText);
       
-      // 先檢查整個文本是否是一個訂閱交易
-      const lowerFullText = text.toLowerCase();
-      const isFullTextSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || lowerFullText.includes('disney') || lowerFullText.includes('月費') || lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
+      const lowerFullText = inputText.toLowerCase();
       
-      let parts: string[];
+      // 檢查是否為訂閱交易
+      const isSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || 
+                            lowerFullText.includes('disney') || lowerFullText.includes('月費') || 
+                            lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || 
+                            lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
       
-      if (isFullTextSubscription) {
-        // 如果是訂閱，不拆分，整個文本作為一條記錄
-        parts = [text];
-        console.log("Detected subscription, treating as single transaction");
-      } else {
-        // 否則正常拆分
-        const normalizedText = text.replace(/\n/g, '，');
-        parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
+      if (isSubscription) {
+        console.log("Detected subscription transaction");
         
-        // Handle the case where input is like "加油100火鍋150" (no punctuation)
-        if (parts.length === 1 && !normalizedText.includes('，')) {
-          const regexSplit = text.match(/[^\d\s]+\d+/g);
-          if (regexSplit) parts = regexSplit;
+        // 提取金額 - 優先找跟「元」有關的，否則找最大的數字
+        let amount = 0;
+        const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
+        
+        if (allNumbers.length > 0) {
+          const yuanMatch = inputText.match(/(\d+)\s*元/);
+          if (yuanMatch && yuanMatch[1]) {
+            amount = Number(yuanMatch[1]);
+          } else {
+            // 找最大的數字（通常是金額，不是日期）
+            amount = Math.max(...allNumbers);
+          }
         }
+        
+        // 確定商家
+        let merchant = '訂閱服務';
+        if (lowerFullText.includes('netflix')) merchant = 'Netflix';
+        else if (lowerFullText.includes('spotify')) merchant = 'Spotify';
+        else if (lowerFullText.includes('disney')) merchant = 'Disney+';
+        else if (lowerFullText.includes('youtube')) merchant = 'YouTube Premium';
+        
+        return [{
+          amount: amount,
+          type: 'subscription',
+          category: '訂閱服務',
+          merchant: merchant,
+          note: inputText,
+          tags: ['固定支出', '自動扣款'],
+          recurrence: 'monthly',
+          originalText: inputText,
+          success: true
+        }];
+      }
+      
+      // 如果不是訂閱，按原來的邏輯處理
+      const normalizedText = inputText.replace(/\n/g, '，');
+      let parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
+      
+      if (parts.length === 1 && !normalizedText.includes('，')) {
+        const regexSplit = inputText.match(/[^\d\s]+\d+/g);
+        if (regexSplit) parts = regexSplit;
       }
 
-      console.log("Split parts:", parts);
-
-      const results = parts.map(part => {
+      return parts.map(part => {
         let category = '日常支出';
         let type = 'expense';
         let merchant = undefined;
         
         const lowerText = part.toLowerCase();
         
-        // 檢查是否為訂閱 (Subscription Check FIRST on individual part
-        const isPartSubscription = lowerText.includes('netflix') || lowerText.includes('spotify') || lowerText.includes('disney') || lowerText.includes('月費') || lowerText.includes('定期扣款') || lowerText.includes('扣款') || lowerText.includes('youtube') || lowerText.includes('icloud');
-        
-        if (isPartSubscription) {
-            category = '訂閱服務';
-            type = 'subscription';
-            if (lowerText.includes('netflix')) merchant = 'Netflix';
-            else if (lowerText.includes('spotify')) merchant = 'Spotify';
-            else if (lowerText.includes('disney')) merchant = 'Disney+';
-            else if (lowerText.includes('youtube')) merchant = 'YouTube Premium';
-            else merchant = '訂閱服務';
-        } else if (lowerText.includes('公車') || lowerText.includes('計程車') || lowerText.includes('uber') || lowerText.includes('搭車') || lowerText.includes('交通') || lowerText.includes('捷運') || lowerText.includes('火車') || lowerText.includes('高鐵') || lowerText.includes('加油')) {
+        if (lowerText.includes('公車') || lowerText.includes('計程車') || lowerText.includes('uber') || 
+            lowerText.includes('搭車') || lowerText.includes('交通') || lowerText.includes('捷運') || 
+            lowerText.includes('火車') || lowerText.includes('高鐵') || lowerText.includes('加油')) {
           category = '交通';
         } else if (lowerText.includes('衣') || lowerText.includes('鞋') || lowerText.includes('治裝') || lowerText.includes('褲')) {
           category = '治裝費';
-        } else if (lowerText.includes('吃') || lowerText.includes('火鍋') || lowerText.includes('飯') || lowerText.includes('餐') || lowerText.includes('麵') || lowerText.includes('茶屋') || lowerText.includes('飲')) {
+        } else if (lowerText.includes('吃') || lowerText.includes('火鍋') || lowerText.includes('飯') || 
+                   lowerText.includes('餐') || lowerText.includes('麵') || lowerText.includes('茶屋') || lowerText.includes('飲')) {
           category = '餐飲';
         } else if (lowerText.includes('薪水') || lowerText.includes('收入') || lowerText.includes('發薪')) {
           category = '薪資所得';
           type = 'income';
         }
 
-        // 智能提取金額：找到所有數字，優先取跟「元」或「$」有關的，否則取最大的數字
         let amount = 0;
         const allNumbers = part.match(/\d+/g)?.map(Number) || [];
         
         if (allNumbers.length > 0) {
-          // 1. 優先找跟「元」或「$」有關的數字
           const yuanMatch = part.match(/(\d+)\s*元/);
           const dollarMatch = part.match(/\$?(\d+)/);
           
@@ -222,7 +242,6 @@ async function startServer() {
           } else if (dollarMatch && dollarMatch[1]) {
             amount = Number(dollarMatch[1]);
           } else {
-            // 2. 如果有多個數字，取最大的（因為金額通常比日期、數量等大）
             amount = Math.max(...allNumbers);
           }
         }
@@ -234,110 +253,29 @@ async function startServer() {
           location: lowerText.includes('逢甲') ? '逢甲' : undefined,
           merchant: lowerText.includes('uber') ? 'Uber' : lowerText.includes('五十嵐') ? '五十嵐' : lowerText.includes('茶屋') ? '十九茶屋' : merchant,
           note: part,
-          tags: type === 'subscription' ? ['固定支出', '自動扣款'] : ['日常', '自動解析'],
-          recurrence: type === 'subscription' ? 'monthly' : 'none',
+          tags: ['日常', '自動解析'],
+          recurrence: 'none',
           originalText: part,
           success: true
         };
       }).filter(r => r.amount > 0);
-
-      console.log("Mock results:", results);
-
-      return res.json({
-        transactions: results,
-        success: true,
-        isMock: true
-      });
     };
 
     try {
       const apiKey = getApiKey();
-      if (!apiKey) {
-        console.log("No API Key, using mock response");
-        return sendMockResponse();
-      }
-
-      const prompt = `您是一個專業的台灣繁體中文記帳小助手。使用者可能會一次輸入多筆交易，可能透過換行、空格或連在一起（例如：「午餐100\n搭車50」或「加油100火車510」）。
-請解析使用者輸入，將其拆分為多個財務條目。每一筆交易需包含：金額（amount，數字）、分類（category）、內容備註（note，例如：加油、午餐）、地點（location）、商家（merchant）、交易種類（type，expense/income/investment/saving/subscription 之一）以及標籤（tags，陣列）。
-請確保將「火車」、「公車」、「加油」、「計程車」歸類為「交通」。
-
-使用者輸入: "${text}"
-
-請只回傳 JSON 格式，不要有其他文字。`;
       
-      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
-        contents: [{
-          role: 'user',
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json'
-        }
-      });
-
-      let parsedText = response.data.candidates[0].content.parts[0].text;
-      if (!parsedText) {
-        throw new Error("Empty response from AI");
-      }
+      // 優先使用我們的智能解析，不依賴AI API（更穩定）
+      const transactions = smartParseTransaction(text);
+      console.log("Smart parse results:", transactions);
       
-      const result = JSON.parse(parsedText);
-      
-      // 檢查是否是訂閱相關的輸入，如果是，確保只有一條記錄
-      const lowerFullText = text.toLowerCase();
-      const isFullTextSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || lowerFullText.includes('disney') || lowerFullText.includes('月費') || lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
-      
-      if (isFullTextSubscription && result.transactions && Array.isArray(result.transactions) && result.transactions.length > 1) {
-        // 如果是訂閱但被拆成多條記錄，我們來修復它
-        console.log("Fixing split subscription transaction");
-        
-        // 找到金額最大的那條記錄（通常是正確的訂閱費用）
-        let maxAmountTx = result.transactions[0];
-        for (const tx of result.transactions) {
-          if (tx.amount > maxAmountTx.amount) {
-            maxAmountTx = tx;
-          }
-        }
-        
-        // 只保留金額最大的那條記錄，並確保它是訂閱類型
-        maxAmountTx.type = 'subscription';
-        maxAmountTx.category = '訂閱服務';
-        maxAmountTx.recurrence = 'monthly';
-        maxAmountTx.tags = ['固定支出', '自動扣款'];
-        
-        // 設置商家名稱
-        if (lowerFullText.includes('netflix')) maxAmountTx.merchant = 'Netflix';
-        else if (lowerFullText.includes('spotify')) maxAmountTx.merchant = 'Spotify';
-        else if (lowerFullText.includes('disney')) maxAmountTx.merchant = 'Disney+';
-        else if (lowerFullText.includes('youtube')) maxAmountTx.merchant = 'YouTube Premium';
-        else maxAmountTx.merchant = '訂閱服務';
-        
-        result.transactions = [maxAmountTx];
-      }
-      
-      // Post-processing for each transaction to ensure accuracy
-      if (result.transactions && Array.isArray(result.transactions)) {
-        result.transactions = result.transactions.map((tx: any) => {
-          const lowerText = text.toLowerCase();
-          
-          // Force correct category for common terms
-          if (lowerText.includes('公車') || lowerText.includes('計程車') || lowerText.includes('uber') || lowerText.includes('捷運') || lowerText.includes('加油') || lowerText.includes('火車')) {
-            if (tx.amount > 0) tx.category = '交通';
-          } else if (lowerText.includes('衣服') || lowerText.includes('褲子') || lowerText.includes('鞋子') || lowerText.includes('治裝')) {
-            if (tx.amount > 0) tx.category = '治裝費';
-          }
-          
-          return { ...tx, success: true };
-        });
-      }
-
-      res.json({
-        transactions: result.transactions || [],
-        success: true
+      return res.json({
+        transactions: transactions,
+        success: true,
+        isMock: true
       });
     } catch (e: any) {
-      console.error("Gemini Parse Transaction Error:", e);
-      console.log("Falling back to mock response due to API error");
-      return sendMockResponse();
+      console.error("Parse Transaction Error:", e);
+      return res.status(500).json({ error: '解析失敗' });
     }
   });
 

@@ -126,30 +126,51 @@ async function startServer() {
     if (!text || typeof text !== "string") {
       return res.status(400).json({ error: "Text is required for parsing" });
     }
-    const sendMockResponse = () => {
-      console.log("Mocking parse-transaction response");
-      const normalizedText = text.replace(/\n/g, "\uFF0C");
+    const smartParseTransaction = (inputText) => {
+      console.log("Smart parsing:", inputText);
+      const lowerFullText = inputText.toLowerCase();
+      const isSubscription = lowerFullText.includes("netflix") || lowerFullText.includes("spotify") || lowerFullText.includes("disney") || lowerFullText.includes("\u6708\u8CBB") || lowerFullText.includes("\u5B9A\u671F\u6263\u6B3E") || lowerFullText.includes("\u6263\u6B3E") || lowerFullText.includes("youtube") || lowerFullText.includes("icloud");
+      if (isSubscription) {
+        console.log("Detected subscription transaction");
+        let amount = 0;
+        const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
+        if (allNumbers.length > 0) {
+          const yuanMatch = inputText.match(/(\d+)\s*元/);
+          if (yuanMatch && yuanMatch[1]) {
+            amount = Number(yuanMatch[1]);
+          } else {
+            amount = Math.max(...allNumbers);
+          }
+        }
+        let merchant = "\u8A02\u95B1\u670D\u52D9";
+        if (lowerFullText.includes("netflix")) merchant = "Netflix";
+        else if (lowerFullText.includes("spotify")) merchant = "Spotify";
+        else if (lowerFullText.includes("disney")) merchant = "Disney+";
+        else if (lowerFullText.includes("youtube")) merchant = "YouTube Premium";
+        return [{
+          amount,
+          type: "subscription",
+          category: "\u8A02\u95B1\u670D\u52D9",
+          merchant,
+          note: inputText,
+          tags: ["\u56FA\u5B9A\u652F\u51FA", "\u81EA\u52D5\u6263\u6B3E"],
+          recurrence: "monthly",
+          originalText: inputText,
+          success: true
+        }];
+      }
+      const normalizedText = inputText.replace(/\n/g, "\uFF0C");
       let parts = normalizedText.split(/[，,。、\s]+/).filter((p) => p.trim().length > 0);
       if (parts.length === 1 && !normalizedText.includes("\uFF0C")) {
-        const regexSplit = text.match(/[^\d\s]+\d+/g);
+        const regexSplit = inputText.match(/[^\d\s]+\d+/g);
         if (regexSplit) parts = regexSplit;
       }
-      console.log("Split parts:", parts);
-      const results = parts.map((part) => {
+      return parts.map((part) => {
         let category = "\u65E5\u5E38\u652F\u51FA";
         let type = "expense";
         let merchant = void 0;
         const lowerText = part.toLowerCase();
-        const isPartSubscription = lowerText.includes("netflix") || lowerText.includes("spotify") || lowerText.includes("disney") || lowerText.includes("\u6708\u8CBB") || lowerText.includes("\u5B9A\u671F\u6263\u6B3E") || lowerText.includes("\u6263\u6B3E") || lowerText.includes("youtube") || lowerText.includes("icloud");
-        if (isPartSubscription) {
-          category = "\u8A02\u95B1\u670D\u52D9";
-          type = "subscription";
-          if (lowerText.includes("netflix")) merchant = "Netflix";
-          else if (lowerText.includes("spotify")) merchant = "Spotify";
-          else if (lowerText.includes("disney")) merchant = "Disney+";
-          else if (lowerText.includes("youtube")) merchant = "YouTube Premium";
-          else merchant = "\u8A02\u95B1\u670D\u52D9";
-        } else if (lowerText.includes("\u516C\u8ECA") || lowerText.includes("\u8A08\u7A0B\u8ECA") || lowerText.includes("uber") || lowerText.includes("\u642D\u8ECA") || lowerText.includes("\u4EA4\u901A") || lowerText.includes("\u6377\u904B") || lowerText.includes("\u706B\u8ECA") || lowerText.includes("\u9AD8\u9435") || lowerText.includes("\u52A0\u6CB9")) {
+        if (lowerText.includes("\u516C\u8ECA") || lowerText.includes("\u8A08\u7A0B\u8ECA") || lowerText.includes("uber") || lowerText.includes("\u642D\u8ECA") || lowerText.includes("\u4EA4\u901A") || lowerText.includes("\u6377\u904B") || lowerText.includes("\u706B\u8ECA") || lowerText.includes("\u9AD8\u9435") || lowerText.includes("\u52A0\u6CB9")) {
           category = "\u4EA4\u901A";
         } else if (lowerText.includes("\u8863") || lowerText.includes("\u978B") || lowerText.includes("\u6CBB\u88DD") || lowerText.includes("\u8932")) {
           category = "\u6CBB\u88DD\u8CBB";
@@ -179,66 +200,25 @@ async function startServer() {
           location: lowerText.includes("\u9022\u7532") ? "\u9022\u7532" : void 0,
           merchant: lowerText.includes("uber") ? "Uber" : lowerText.includes("\u4E94\u5341\u5D50") ? "\u4E94\u5341\u5D50" : lowerText.includes("\u8336\u5C4B") ? "\u5341\u4E5D\u8336\u5C4B" : merchant,
           note: part,
-          tags: type === "subscription" ? ["\u56FA\u5B9A\u652F\u51FA", "\u81EA\u52D5\u6263\u6B3E"] : ["\u65E5\u5E38", "\u81EA\u52D5\u89E3\u6790"],
-          recurrence: type === "subscription" ? "monthly" : "none",
+          tags: ["\u65E5\u5E38", "\u81EA\u52D5\u89E3\u6790"],
+          recurrence: "none",
           originalText: part,
           success: true
         };
       }).filter((r) => r.amount > 0);
-      console.log("Mock results:", results);
-      return res.json({
-        transactions: results,
-        success: true,
-        isMock: true
-      });
     };
     try {
       const apiKey = getApiKey();
-      if (!apiKey) {
-        console.log("No API Key, using mock response");
-        return sendMockResponse();
-      }
-      const prompt = `\u60A8\u662F\u4E00\u500B\u5C08\u696D\u7684\u53F0\u7063\u7E41\u9AD4\u4E2D\u6587\u8A18\u5E33\u5C0F\u52A9\u624B\u3002\u4F7F\u7528\u8005\u53EF\u80FD\u6703\u4E00\u6B21\u8F38\u5165\u591A\u7B46\u4EA4\u6613\uFF0C\u53EF\u80FD\u900F\u904E\u63DB\u884C\u3001\u7A7A\u683C\u6216\u9023\u5728\u4E00\u8D77\uFF08\u4F8B\u5982\uFF1A\u300C\u5348\u9910100
-\u642D\u8ECA50\u300D\u6216\u300C\u52A0\u6CB9100\u706B\u8ECA510\u300D\uFF09\u3002
-\u8ACB\u89E3\u6790\u4F7F\u7528\u8005\u8F38\u5165\uFF0C\u5C07\u5176\u62C6\u5206\u70BA\u591A\u500B\u8CA1\u52D9\u689D\u76EE\u3002\u6BCF\u4E00\u7B46\u4EA4\u6613\u9700\u5305\u542B\uFF1A\u91D1\u984D\uFF08amount\uFF0C\u6578\u5B57\uFF09\u3001\u5206\u985E\uFF08category\uFF09\u3001\u5167\u5BB9\u5099\u8A3B\uFF08note\uFF0C\u4F8B\u5982\uFF1A\u52A0\u6CB9\u3001\u5348\u9910\uFF09\u3001\u5730\u9EDE\uFF08location\uFF09\u3001\u5546\u5BB6\uFF08merchant\uFF09\u3001\u4EA4\u6613\u7A2E\u985E\uFF08type\uFF0Cexpense/income/investment/saving/subscription \u4E4B\u4E00\uFF09\u4EE5\u53CA\u6A19\u7C64\uFF08tags\uFF0C\u9663\u5217\uFF09\u3002
-\u8ACB\u78BA\u4FDD\u5C07\u300C\u706B\u8ECA\u300D\u3001\u300C\u516C\u8ECA\u300D\u3001\u300C\u52A0\u6CB9\u300D\u3001\u300C\u8A08\u7A0B\u8ECA\u300D\u6B78\u985E\u70BA\u300C\u4EA4\u901A\u300D\u3002
-
-\u4F7F\u7528\u8005\u8F38\u5165: "${text}"
-
-\u8ACB\u53EA\u56DE\u50B3 JSON \u683C\u5F0F\uFF0C\u4E0D\u8981\u6709\u5176\u4ED6\u6587\u5B57\u3002`;
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey}`, {
-        contents: [{
-          role: "user",
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      });
-      let parsedText = response.data.candidates[0].content.parts[0].text;
-      if (!parsedText) {
-        throw new Error("Empty response from AI");
-      }
-      const result = JSON.parse(parsedText);
-      if (result.transactions && Array.isArray(result.transactions)) {
-        result.transactions = result.transactions.map((tx) => {
-          const lowerText = text.toLowerCase();
-          if (lowerText.includes("\u516C\u8ECA") || lowerText.includes("\u8A08\u7A0B\u8ECA") || lowerText.includes("uber") || lowerText.includes("\u6377\u904B") || lowerText.includes("\u52A0\u6CB9") || lowerText.includes("\u706B\u8ECA")) {
-            if (tx.amount > 0) tx.category = "\u4EA4\u901A";
-          } else if (lowerText.includes("\u8863\u670D") || lowerText.includes("\u8932\u5B50") || lowerText.includes("\u978B\u5B50") || lowerText.includes("\u6CBB\u88DD")) {
-            if (tx.amount > 0) tx.category = "\u6CBB\u88DD\u8CBB";
-          }
-          return { ...tx, success: true };
-        });
-      }
-      res.json({
-        transactions: result.transactions || [],
-        success: true
+      const transactions = smartParseTransaction(text);
+      console.log("Smart parse results:", transactions);
+      return res.json({
+        transactions,
+        success: true,
+        isMock: true
       });
     } catch (e) {
-      console.error("Gemini Parse Transaction Error:", e);
-      console.log("Falling back to mock response due to API error");
-      return sendMockResponse();
+      console.error("Parse Transaction Error:", e);
+      return res.status(500).json({ error: "\u89E3\u6790\u5931\u6557" });
     }
   });
   app.post("/api/ai-advisor", async (req, res) => {

@@ -6,7 +6,6 @@ export const INITIAL_ASSET_ITEMS: AssetItem[] = [];
 
 export const INITIAL_BUDGET_CONFIGS: BudgetConfig[] = [
   { category: '餐飲', limit: 8000 },
-  { category: '餐飲/晚餐', limit: 5000 },
   { category: '手搖飲/外送', limit: 800 },
   { category: '交通', limit: 3000 },
   { category: '社交娛樂', limit: 1500 },

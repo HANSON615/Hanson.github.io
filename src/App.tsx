@@ -453,25 +453,27 @@ export default function App() {
     .filter(t => t.type === 'income' && t.date.startsWith('2026-06'))
     .reduce((sum, current) => sum + current.amount, 0);
 
-  // Category aggregate spending
+  // Category aggregate spending - 簡單可靠的版本
   const getCategorySpending = (categoryName: string) => {
-    const filtered = transactions.filter(t => {
-      // 檢查類型
-      if (t.type !== 'expense' && t.type !== 'subscription') return false;
-      
-      // 檢查日期（當前月份）
-      const currentMonth = '2026-06';
-      if (!t.date.startsWith(currentMonth)) return false;
-      
-      // 檢查分類匹配 - 更簡單的邏輯
-      const txCatLower = t.category.toLowerCase();
-      const budgetCatLower = categoryName.toLowerCase();
-      return txCatLower.includes(budgetCatLower) || budgetCatLower.includes(txCatLower);
-    });
+    let total = 0;
+    const currentMonth = '2026-06';
     
-    const total = filtered.reduce((sum, t) => sum + t.amount, 0);
-    console.log(`Category ${categoryName}:`, filtered.length, 'transactions, total:', total);
+    for (const t of transactions) {
+      // 只計算支出和訂閱
+      if (t.type !== 'expense' && t.type !== 'subscription') continue;
+      
+      // 只計算當月的
+      if (!t.date.startsWith(currentMonth)) continue;
+      
+      // 分類匹配 - 直接相等或者部分包含
+      if (t.category === categoryName || 
+          t.category.includes(categoryName) || 
+          categoryName.includes(t.category)) {
+        total += t.amount;
+      }
+    }
     
+    console.log(`[预算] ${categoryName}: ${total}元`);
     return total;
   };
 
@@ -718,24 +720,40 @@ export default function App() {
 
   // --- Handlers & API integrations ---
 
-  // Check if a new transaction exceeds budget
+  // Check if a new transaction exceeds budget - 簡單可靠的版本
   const checkBudget = (tx: Transaction, currentTxs: Transaction[]) => {
     if (tx.type !== 'expense' && tx.type !== 'subscription') return;
     
-    const budget = budgets.find(b => tx.category.includes(b.category) || b.category.includes(tx.category));
+    console.log('[checkBudget] 检查交易:', tx);
+    
+    const budget = budgets.find(b => 
+      tx.category === b.category || 
+      tx.category.includes(b.category) || 
+      b.category.includes(tx.category)
+    );
+    
     if (budget) {
-      const currentSpending = currentTxs
-        .filter(t => (t.type === 'expense' || t.type === 'subscription') && (t.category.includes(budget.category) || budget.category.includes(t.category)) && t.date.startsWith('2026-06'))
-        .reduce((sum, t) => sum + t.amount, 0);
+      let currentSpending = 0;
+      for (const t of currentTxs) {
+        if ((t.type === 'expense' || t.type === 'subscription') && 
+            t.date.startsWith('2026-06') &&
+            (t.category === budget.category || 
+             t.category.includes(budget.category) || 
+             budget.category.includes(t.category))) {
+          currentSpending += t.amount;
+        }
+      }
       
       const totalAfter = currentSpending + tx.amount;
+      console.log(`[checkBudget] ${budget.category}: 当前${currentSpending} + 新增${tx.amount} = ${totalAfter} / 限额${budget.limit}`);
+      
       if (totalAfter > budget.limit) {
         setBudgetAlert({
           isOpen: true,
           category: budget.category,
           amount: totalAfter,
           limit: budget.limit,
-          suggestion: `偵測到你這個月的「${budget.category}」預算已超支 ${totalAfter - budget.limit} 元。建議調整接下來的聚餐計畫，或者從其他預算科目挪移資金。`
+          suggestion: `偵測到你這個月的「${budget.category}」預算已超支 ${totalAfter - budget.limit} 元。`
         });
       }
     }
