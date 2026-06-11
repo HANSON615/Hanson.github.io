@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -634,14 +635,28 @@ async function startServer() {
   });
 
   // Serve static UI assets or run Vite dev server
-  if (process.env.NODE_ENV !== 'production') {
+  // 檢查是否有 dist 目錄，如果有就直接用生產模式
+  const distPath = path.join(process.cwd(), 'dist');
+  const hasDistDirectory = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
+  
+  if (hasDistDirectory) {
+    // 生產模式：提供靜態文件
+    console.log(`[Server] Running in production mode, serving from ${distPath}`);
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else if (process.env.NODE_ENV !== 'production') {
+    // 開發模式：啟動 Vite
+    console.log('[Server] Running in development mode, starting Vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // 最後備援
+    console.log('[Server] No dist directory found, running in fallback mode');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
