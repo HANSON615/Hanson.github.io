@@ -33,8 +33,14 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 async function startServer() {
+  console.log('[Server] Starting server...');
+  console.log('[Server] Environment variables:', Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')));
+  
   const app = express();
   const PORT = process.env.PORT || 3000;
+  
+  console.log(`[Server] Using PORT: ${PORT}`);
+  console.log(`[Server] Current directory: ${process.cwd()}`);
 
   app.use(express.json());
 

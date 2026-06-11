@@ -51,8 +51,12 @@ function getGeminiClient() {
   return aiClient;
 }
 async function startServer() {
+  console.log("[Server] Starting server...");
+  console.log("[Server] Environment variables:", Object.keys(process.env).filter((k) => !k.includes("KEY") && !k.includes("SECRET")));
   const app = (0, import_express.default)();
   const PORT = process.env.PORT || 3e3;
+  console.log(`[Server] Using PORT: ${PORT}`);
+  console.log(`[Server] Current directory: ${process.cwd()}`);
   app.use(import_express.default.json());
   app.post("/api/parse-transaction", async (req, res) => {
     const { text } = req.body;
