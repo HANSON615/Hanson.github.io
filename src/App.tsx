@@ -178,10 +178,29 @@ export default function App() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [editTagInput, setEditTagInput] = useState('');
 
+  // 安全的數據處理函數
+  const safeAdvisorReport = (data: any): AdvisorResponse => {
+    return {
+      warning: data?.warning || "",
+      suggestions: Array.isArray(data?.suggestions) ? data.suggestions : ["點擊「AI 記帳」或「手動新增」來開始紀錄您的第一筆消費。"],
+      summary: data?.summary || "",
+      subscriptionAlerts: Array.isArray(data?.subscriptionAlerts) ? data.subscriptionAlerts : [],
+      goalFeedback: data?.goalFeedback || ""
+    };
+  };
+
   // AI Advisor Diagnostic Result Buffer
   const [advisorReport, setAdvisorReport] = useState<AdvisorResponse | null>(() => {
-    const local = localStorage.getItem('morandi_advisor_report_v2');
-    if (local) return JSON.parse(local);
+    try {
+      const local = localStorage.getItem('morandi_advisor_report_v2');
+      if (local) {
+        const parsed = JSON.parse(local);
+        return safeAdvisorReport(parsed);
+      }
+    } catch (e) {
+      console.warn("Failed to parse advisor report from localStorage, resetting");
+      localStorage.removeItem('morandi_advisor_report_v2');
+    }
     return null;
   });
 
@@ -797,7 +816,7 @@ export default function App() {
       });
       if (!res.ok) throw new Error("理財小精靈診斷失敗。");
       const data = await res.json();
-      setAdvisorReport(data);
+      setAdvisorReport(safeAdvisorReport(data));
     } catch (err) {
       console.error("Advisor request fail:", err);
     } finally {
