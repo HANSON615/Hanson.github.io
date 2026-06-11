@@ -29,8 +29,8 @@ var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_axios = __toESM(require("axios"), 1);
 import_dotenv.default.config();
-var GEMINI_MODEL = "gemini-1.0-pro";
-var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+var GEMINI_MODEL = "gemini-1.5-flash-latest";
+var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 function getApiKey() {
   const key = process.env.GEMINI_API_KEY;
   console.log("[Env Check] GEMINI_API_KEY from env:", key ? "Loaded (length: " + key.length + ")" : "NOT FOUND!");
@@ -55,6 +55,34 @@ async function startServer() {
       envKeys: Object.keys(process.env).filter((k) => !k.includes("KEY") && !k.includes("SECRET")),
       nodeEnv: process.env.NODE_ENV
     });
+  });
+  app.get("/api/list-models", async (req, res) => {
+    console.log("[Test Endpoint] Listing all available models...");
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        error: "API Key not found",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    try {
+      const response = await import_axios.default.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      console.log("[Test Endpoint] Models list retrieved!");
+      res.json({
+        success: true,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        models: response.data.models
+      });
+    } catch (e) {
+      console.error("[Test Endpoint] List models ERROR:", e?.response?.data || e?.message || e);
+      res.json({
+        success: false,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        error: e?.message || "Unknown error",
+        errorDetails: e?.response?.data || null
+      });
+    }
   });
   app.get("/api/test-gemini", async (req, res) => {
     console.log("[Test Endpoint] Testing Gemini API...");

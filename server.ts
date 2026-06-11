@@ -8,8 +8,8 @@ import axios from 'axios';
 
 dotenv.config();
 
-const GEMINI_MODEL = 'gemini-1.0-pro';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // 每次都重新讀取環境變量（確保 Railway 上的設置能被讀到）
 function getApiKey() {
@@ -63,6 +63,40 @@ async function startServer() {
       envKeys: Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')),
       nodeEnv: process.env.NODE_ENV
     });
+  });
+
+  // === 測試端點：列出所有可用模型 ===
+  app.get('/api/list-models', async (req, res) => {
+    console.log("[Test Endpoint] Listing all available models...");
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        error: "API Key not found",
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    try {
+      const response = await axios.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      console.log("[Test Endpoint] Models list retrieved!");
+      
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        models: response.data.models
+      });
+    } catch (e: any) {
+      console.error("[Test Endpoint] List models ERROR:", e?.response?.data || e?.message || e);
+      
+      res.json({
+        success: false,
+        timestamp: new Date().toISOString(),
+        error: e?.message || "Unknown error",
+        errorDetails: e?.response?.data || null
+      });
+    }
   });
 
   // === 測試端點：測試 Gemini API ===
