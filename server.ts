@@ -8,8 +8,8 @@ import axios from 'axios';
 
 dotenv.config();
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODEL = 'gemini-1.0-pro';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
 
 // 每次都重新讀取環境變量（確保 Railway 上的設置能被讀到）
 function getApiKey() {
