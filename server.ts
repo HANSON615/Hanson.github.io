@@ -151,9 +151,9 @@ async function startServer() {
       return res.status(400).json({ error: 'Text is required for parsing' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'MOCK_KEY') {
-      console.log("Mocking parse-transaction response because GEMINI_API_KEY is missing");
+    // 定義模擬回覆函數
+    const sendMockResponse = () => {
+      console.log("Mocking parse-transaction response");
       
       // Always split FIRST, then check each part individually
       const normalizedText = text.replace(/\n/g, '，');
@@ -217,9 +217,15 @@ async function startServer() {
         success: true,
         isMock: true
       });
-    }
+    };
 
     try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        console.log("No API Key, using mock response");
+        return sendMockResponse();
+      }
+
       const prompt = `您是一個專業的台灣繁體中文記帳小助手。使用者可能會一次輸入多筆交易，可能透過換行、空格或連在一起（例如：「午餐100\n搭車50」或「加油100火車510」）。
 請解析使用者輸入，將其拆分為多個財務條目。每一筆交易需包含：金額（amount，數字）、分類（category）、內容備註（note，例如：加油、午餐）、地點（location）、商家（merchant）、交易種類（type，expense/income/investment/saving/subscription 之一）以及標籤（tags，陣列）。
 請確保將「火車」、「公車」、「加油」、「計程車」歸類為「交通」。
@@ -227,11 +233,6 @@ async function startServer() {
 使用者輸入: "${text}"
 
 請只回傳 JSON 格式，不要有其他文字。`;
-
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        throw new Error("API Key not available");
-      }
       
       const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
@@ -272,7 +273,8 @@ async function startServer() {
       });
     } catch (e: any) {
       console.error("Gemini Parse Transaction Error:", e);
-      res.status(500).json({ error: e.message || "Failed to parse text via Gemini" });
+      console.log("Falling back to mock response due to API error");
+      return sendMockResponse();
     }
   });
 

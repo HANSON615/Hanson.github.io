@@ -126,9 +126,8 @@ async function startServer() {
     if (!text || typeof text !== "string") {
       return res.status(400).json({ error: "Text is required for parsing" });
     }
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "MOCK_KEY") {
-      console.log("Mocking parse-transaction response because GEMINI_API_KEY is missing");
+    const sendMockResponse = () => {
+      console.log("Mocking parse-transaction response");
       const normalizedText = text.replace(/\n/g, "\uFF0C");
       let parts = normalizedText.split(/[，,。、\s]+/).filter((p) => p.trim().length > 0);
       if (parts.length === 1 && !normalizedText.includes("\uFF0C")) {
@@ -179,8 +178,13 @@ async function startServer() {
         success: true,
         isMock: true
       });
-    }
+    };
     try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        console.log("No API Key, using mock response");
+        return sendMockResponse();
+      }
       const prompt = `\u60A8\u662F\u4E00\u500B\u5C08\u696D\u7684\u53F0\u7063\u7E41\u9AD4\u4E2D\u6587\u8A18\u5E33\u5C0F\u52A9\u624B\u3002\u4F7F\u7528\u8005\u53EF\u80FD\u6703\u4E00\u6B21\u8F38\u5165\u591A\u7B46\u4EA4\u6613\uFF0C\u53EF\u80FD\u900F\u904E\u63DB\u884C\u3001\u7A7A\u683C\u6216\u9023\u5728\u4E00\u8D77\uFF08\u4F8B\u5982\uFF1A\u300C\u5348\u9910100
 \u642D\u8ECA50\u300D\u6216\u300C\u52A0\u6CB9100\u706B\u8ECA510\u300D\uFF09\u3002
 \u8ACB\u89E3\u6790\u4F7F\u7528\u8005\u8F38\u5165\uFF0C\u5C07\u5176\u62C6\u5206\u70BA\u591A\u500B\u8CA1\u52D9\u689D\u76EE\u3002\u6BCF\u4E00\u7B46\u4EA4\u6613\u9700\u5305\u542B\uFF1A\u91D1\u984D\uFF08amount\uFF0C\u6578\u5B57\uFF09\u3001\u5206\u985E\uFF08category\uFF09\u3001\u5167\u5BB9\u5099\u8A3B\uFF08note\uFF0C\u4F8B\u5982\uFF1A\u52A0\u6CB9\u3001\u5348\u9910\uFF09\u3001\u5730\u9EDE\uFF08location\uFF09\u3001\u5546\u5BB6\uFF08merchant\uFF09\u3001\u4EA4\u6613\u7A2E\u985E\uFF08type\uFF0Cexpense/income/investment/saving/subscription \u4E4B\u4E00\uFF09\u4EE5\u53CA\u6A19\u7C64\uFF08tags\uFF0C\u9663\u5217\uFF09\u3002
@@ -189,11 +193,7 @@ async function startServer() {
 \u4F7F\u7528\u8005\u8F38\u5165: "${text}"
 
 \u8ACB\u53EA\u56DE\u50B3 JSON \u683C\u5F0F\uFF0C\u4E0D\u8981\u6709\u5176\u4ED6\u6587\u5B57\u3002`;
-      const apiKey2 = getApiKey();
-      if (!apiKey2) {
-        throw new Error("API Key not available");
-      }
-      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey2}`, {
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey}`, {
         contents: [{
           role: "user",
           parts: [{ text: prompt }]
@@ -224,7 +224,8 @@ async function startServer() {
       });
     } catch (e) {
       console.error("Gemini Parse Transaction Error:", e);
-      res.status(500).json({ error: e.message || "Failed to parse text via Gemini" });
+      console.log("Falling back to mock response due to API error");
+      return sendMockResponse();
     }
   });
   app.post("/api/ai-advisor", async (req, res) => {
