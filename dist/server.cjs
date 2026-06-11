@@ -29,8 +29,8 @@ var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_axios = __toESM(require("axios"), 1);
 import_dotenv.default.config();
-var GEMINI_MODEL = "gemini-pro";
-var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
+var GEMINI_MODEL = "gemini-1.5-flash";
+var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 function getApiKey() {
   const key = process.env.GEMINI_API_KEY;
   console.log("[Env Check] GEMINI_API_KEY from env:", key ? "Loaded (length: " + key.length + ")" : "NOT FOUND!");
