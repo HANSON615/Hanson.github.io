@@ -635,32 +635,24 @@ async function startServer() {
   });
 
   // Serve static UI assets or run Vite dev server
-  // 檢查是否有 dist 目錄，如果有就直接用生產模式
   const distPath = path.join(process.cwd(), 'dist');
-  const hasDistDirectory = fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'));
+  console.log(`[Server] Dist path: ${distPath}`);
   
-  if (hasDistDirectory) {
-    // 生產模式：提供靜態文件
-    console.log(`[Server] Running in production mode, serving from ${distPath}`);
+  try {
+    // Always try production mode first since we're deploying to Railway
+    console.log('[Server] Attempting to serve static files from dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
-  } else if (process.env.NODE_ENV !== 'production') {
-    // 開發模式：啟動 Vite
-    console.log('[Server] Running in development mode, starting Vite');
+  } catch (e) {
+    // Fallback to dev mode only if production fails
+    console.log('[Server] Falling back to dev mode');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    // 最後備援
-    console.log('[Server] No dist directory found, running in fallback mode');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, '0.0.0.0', () => {

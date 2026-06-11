@@ -24,7 +24,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // server.ts
 var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
-var import_fs = __toESM(require("fs"), 1);
 var import_vite = require("vite");
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
@@ -586,26 +585,20 @@ async function startServer() {
     }
   });
   const distPath = import_path.default.join(process.cwd(), "dist");
-  const hasDistDirectory = import_fs.default.existsSync(distPath) && import_fs.default.existsSync(import_path.default.join(distPath, "index.html"));
-  if (hasDistDirectory) {
-    console.log(`[Server] Running in production mode, serving from ${distPath}`);
+  console.log(`[Server] Dist path: ${distPath}`);
+  try {
+    console.log("[Server] Attempting to serve static files from dist");
     app.use(import_express.default.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(import_path.default.join(distPath, "index.html"));
     });
-  } else if (process.env.NODE_ENV !== "production") {
-    console.log("[Server] Running in development mode, starting Vite");
+  } catch (e) {
+    console.log("[Server] Falling back to dev mode");
     const vite = await (0, import_vite.createServer)({
       server: { middlewareMode: true },
       appType: "spa"
     });
     app.use(vite.middlewares);
-  } else {
-    console.log("[Server] No dist directory found, running in fallback mode");
-    app.use(import_express.default.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(import_path.default.join(distPath, "index.html"));
-    });
   }
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
