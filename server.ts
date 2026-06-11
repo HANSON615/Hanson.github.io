@@ -155,20 +155,56 @@ async function startServer() {
     const smartParseTransaction = (inputText: string) => {
       console.log("Smart parsing:", inputText);
       
+      // 步驟1: 先檢查是否有明確的分隔符（換行、逗號等），如果有就先分隔
+      const hasClearSeparator = inputText.includes('\n') || 
+                              inputText.includes('，') || 
+                              inputText.includes(',') ||
+                              inputText.includes('。') ||
+                              inputText.includes('、');
+      
+      if (hasClearSeparator) {
+        console.log("Detected clear separators, splitting first");
+        // 有明確分隔符，先分隔再處理每一部分
+        const normalizedText = inputText.replace(/\n/g, '，');
+        let parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
+        
+        if (parts.length === 1 && !normalizedText.includes('，')) {
+          const regexSplit = inputText.match(/[^\d\s]+\d+/g);
+          if (regexSplit) parts = regexSplit;
+        }
+        
+        // 處理每個部分
+        return parts.map(part => parseSinglePart(part)).filter(r => r.amount > 0);
+      }
+      
+      // 步驟2: 沒有明確分隔符，檢查是否是「單一訂閱交易」或者「多個連在一起的交易」
       const lowerFullText = inputText.toLowerCase();
       
-      // 檢查是否為訂閱交易
+      // 檢查是否有多個金額（如果有多個，可能是多個交易連在一起）
+      const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
+      const hasMultipleAmounts = allNumbers.filter(n => n >= 10).length > 1; // 假設金額通常>=10
+      
+      if (hasMultipleAmounts) {
+        console.log("Detected multiple amounts, trying to split into multiple transactions");
+        // 有多個金額，嘗試用正則表達式拆分多個交易
+        // 模式：尋找「非數字+數字」的模式
+        const regexSplit = inputText.match(/[^\d\s]*[^\d]+[\d]+[^\d]*/g);
+        if (regexSplit && regexSplit.length > 1) {
+          return regexSplit.map(part => parseSinglePart(part)).filter(r => r.amount > 0);
+        }
+      }
+      
+      // 步驟3: 檢查是否為單一訂閱交易
       const isSubscription = lowerFullText.includes('netflix') || lowerFullText.includes('spotify') || 
                             lowerFullText.includes('disney') || lowerFullText.includes('月費') || 
                             lowerFullText.includes('定期扣款') || lowerFullText.includes('扣款') || 
                             lowerFullText.includes('youtube') || lowerFullText.includes('icloud');
       
       if (isSubscription) {
-        console.log("Detected subscription transaction");
+        console.log("Detected single subscription transaction");
         
         // 提取金額 - 優先找跟「元」有關的，否則找最大的數字
         let amount = 0;
-        const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
         
         if (allNumbers.length > 0) {
           const yuanMatch = inputText.match(/(\d+)\s*元/);
@@ -200,7 +236,8 @@ async function startServer() {
         }];
       }
       
-      // 如果不是訂閱，按原來的邏輯處理
+      // 步驟4: 最後按原來的邏輯處理
+      console.log("Using default parsing logic");
       const normalizedText = inputText.replace(/\n/g, '，');
       let parts = normalizedText.split(/[，,。、\s]+/).filter(p => p.trim().length > 0);
       
@@ -209,56 +246,73 @@ async function startServer() {
         if (regexSplit) parts = regexSplit;
       }
 
-      return parts.map(part => {
-        let category = '日常支出';
-        let type = 'expense';
-        let merchant = undefined;
-        
-        const lowerText = part.toLowerCase();
-        
-        if (lowerText.includes('公車') || lowerText.includes('計程車') || lowerText.includes('uber') || 
-            lowerText.includes('搭車') || lowerText.includes('交通') || lowerText.includes('捷運') || 
-            lowerText.includes('火車') || lowerText.includes('高鐵') || lowerText.includes('加油')) {
-          category = '交通';
-        } else if (lowerText.includes('衣') || lowerText.includes('鞋') || lowerText.includes('治裝') || lowerText.includes('褲')) {
-          category = '治裝費';
-        } else if (lowerText.includes('吃') || lowerText.includes('火鍋') || lowerText.includes('飯') || 
-                   lowerText.includes('餐') || lowerText.includes('麵') || lowerText.includes('茶屋') || lowerText.includes('飲')) {
-          category = '餐飲';
-        } else if (lowerText.includes('薪水') || lowerText.includes('收入') || lowerText.includes('發薪')) {
-          category = '薪資所得';
-          type = 'income';
-        }
+      return parts.map(part => parseSinglePart(part)).filter(r => r.amount > 0);
+    };
+    
+    // 輔助函數：解析單個部分
+    const parseSinglePart = (part: string) => {
+      let category = '日常支出';
+      let type = 'expense';
+      let merchant = undefined;
+      
+      const lowerText = part.toLowerCase();
+      
+      // 檢查是否為訂閱
+      const isPartSubscription = lowerText.includes('netflix') || lowerText.includes('spotify') || 
+                                lowerText.includes('disney') || lowerText.includes('月費') || 
+                                lowerText.includes('定期扣款') || lowerText.includes('扣款') || 
+                                lowerText.includes('youtube') || lowerText.includes('icloud');
+      
+      if (isPartSubscription) {
+        category = '訂閱服務';
+        type = 'subscription';
+        if (lowerText.includes('netflix')) merchant = 'Netflix';
+        else if (lowerText.includes('spotify')) merchant = 'Spotify';
+        else if (lowerText.includes('disney')) merchant = 'Disney+';
+        else if (lowerText.includes('youtube')) merchant = 'YouTube Premium';
+        else merchant = '訂閱服務';
+      } else if (lowerText.includes('公車') || lowerText.includes('計程車') || lowerText.includes('uber') || 
+          lowerText.includes('搭車') || lowerText.includes('交通') || lowerText.includes('捷運') || 
+          lowerText.includes('火車') || lowerText.includes('高鐵') || lowerText.includes('加油')) {
+        category = '交通';
+      } else if (lowerText.includes('衣') || lowerText.includes('鞋') || lowerText.includes('治裝') || lowerText.includes('褲')) {
+        category = '治裝費';
+      } else if (lowerText.includes('吃') || lowerText.includes('火鍋') || lowerText.includes('飯') || 
+                 lowerText.includes('餐') || lowerText.includes('麵') || lowerText.includes('茶屋') || lowerText.includes('飲')) {
+        category = '餐飲';
+      } else if (lowerText.includes('薪水') || lowerText.includes('收入') || lowerText.includes('發薪')) {
+        category = '薪資所得';
+        type = 'income';
+      }
 
-        let amount = 0;
-        const allNumbers = part.match(/\d+/g)?.map(Number) || [];
+      let amount = 0;
+      const allNumbers = part.match(/\d+/g)?.map(Number) || [];
+      
+      if (allNumbers.length > 0) {
+        const yuanMatch = part.match(/(\d+)\s*元/);
+        const dollarMatch = part.match(/\$?(\d+)/);
         
-        if (allNumbers.length > 0) {
-          const yuanMatch = part.match(/(\d+)\s*元/);
-          const dollarMatch = part.match(/\$?(\d+)/);
-          
-          if (yuanMatch && yuanMatch[1]) {
-            amount = Number(yuanMatch[1]);
-          } else if (dollarMatch && dollarMatch[1]) {
-            amount = Number(dollarMatch[1]);
-          } else {
-            amount = Math.max(...allNumbers);
-          }
+        if (yuanMatch && yuanMatch[1]) {
+          amount = Number(yuanMatch[1]);
+        } else if (dollarMatch && dollarMatch[1]) {
+          amount = Number(dollarMatch[1]);
+        } else {
+          amount = Math.max(...allNumbers);
         }
+      }
 
-        return {
-          amount: amount,
-          type: type,
-          category: category,
-          location: lowerText.includes('逢甲') ? '逢甲' : undefined,
-          merchant: lowerText.includes('uber') ? 'Uber' : lowerText.includes('五十嵐') ? '五十嵐' : lowerText.includes('茶屋') ? '十九茶屋' : merchant,
-          note: part,
-          tags: ['日常', '自動解析'],
-          recurrence: 'none',
-          originalText: part,
-          success: true
-        };
-      }).filter(r => r.amount > 0);
+      return {
+        amount: amount,
+        type: type,
+        category: category,
+        location: lowerText.includes('逢甲') ? '逢甲' : undefined,
+        merchant: lowerText.includes('uber') ? 'Uber' : lowerText.includes('五十嵐') ? '五十嵐' : lowerText.includes('茶屋') ? '十九茶屋' : merchant,
+        note: part,
+        tags: type === 'subscription' ? ['固定支出', '自動扣款'] : ['日常', '自動解析'],
+        recurrence: type === 'subscription' ? 'monthly' : 'none',
+        originalText: part,
+        success: true
+      };
     };
 
     try {

@@ -128,12 +128,31 @@ async function startServer() {
     }
     const smartParseTransaction = (inputText) => {
       console.log("Smart parsing:", inputText);
+      const hasClearSeparator = inputText.includes("\n") || inputText.includes("\uFF0C") || inputText.includes(",") || inputText.includes("\u3002") || inputText.includes("\u3001");
+      if (hasClearSeparator) {
+        console.log("Detected clear separators, splitting first");
+        const normalizedText2 = inputText.replace(/\n/g, "\uFF0C");
+        let parts2 = normalizedText2.split(/[，,。、\s]+/).filter((p) => p.trim().length > 0);
+        if (parts2.length === 1 && !normalizedText2.includes("\uFF0C")) {
+          const regexSplit = inputText.match(/[^\d\s]+\d+/g);
+          if (regexSplit) parts2 = regexSplit;
+        }
+        return parts2.map((part) => parseSinglePart(part)).filter((r) => r.amount > 0);
+      }
       const lowerFullText = inputText.toLowerCase();
+      const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
+      const hasMultipleAmounts = allNumbers.filter((n) => n >= 10).length > 1;
+      if (hasMultipleAmounts) {
+        console.log("Detected multiple amounts, trying to split into multiple transactions");
+        const regexSplit = inputText.match(/[^\d\s]*[^\d]+[\d]+[^\d]*/g);
+        if (regexSplit && regexSplit.length > 1) {
+          return regexSplit.map((part) => parseSinglePart(part)).filter((r) => r.amount > 0);
+        }
+      }
       const isSubscription = lowerFullText.includes("netflix") || lowerFullText.includes("spotify") || lowerFullText.includes("disney") || lowerFullText.includes("\u6708\u8CBB") || lowerFullText.includes("\u5B9A\u671F\u6263\u6B3E") || lowerFullText.includes("\u6263\u6B3E") || lowerFullText.includes("youtube") || lowerFullText.includes("icloud");
       if (isSubscription) {
-        console.log("Detected subscription transaction");
+        console.log("Detected single subscription transaction");
         let amount = 0;
-        const allNumbers = inputText.match(/\d+/g)?.map(Number) || [];
         if (allNumbers.length > 0) {
           const yuanMatch = inputText.match(/(\d+)\s*元/);
           if (yuanMatch && yuanMatch[1]) {
@@ -159,53 +178,64 @@ async function startServer() {
           success: true
         }];
       }
+      console.log("Using default parsing logic");
       const normalizedText = inputText.replace(/\n/g, "\uFF0C");
       let parts = normalizedText.split(/[，,。、\s]+/).filter((p) => p.trim().length > 0);
       if (parts.length === 1 && !normalizedText.includes("\uFF0C")) {
         const regexSplit = inputText.match(/[^\d\s]+\d+/g);
         if (regexSplit) parts = regexSplit;
       }
-      return parts.map((part) => {
-        let category = "\u65E5\u5E38\u652F\u51FA";
-        let type = "expense";
-        let merchant = void 0;
-        const lowerText = part.toLowerCase();
-        if (lowerText.includes("\u516C\u8ECA") || lowerText.includes("\u8A08\u7A0B\u8ECA") || lowerText.includes("uber") || lowerText.includes("\u642D\u8ECA") || lowerText.includes("\u4EA4\u901A") || lowerText.includes("\u6377\u904B") || lowerText.includes("\u706B\u8ECA") || lowerText.includes("\u9AD8\u9435") || lowerText.includes("\u52A0\u6CB9")) {
-          category = "\u4EA4\u901A";
-        } else if (lowerText.includes("\u8863") || lowerText.includes("\u978B") || lowerText.includes("\u6CBB\u88DD") || lowerText.includes("\u8932")) {
-          category = "\u6CBB\u88DD\u8CBB";
-        } else if (lowerText.includes("\u5403") || lowerText.includes("\u706B\u934B") || lowerText.includes("\u98EF") || lowerText.includes("\u9910") || lowerText.includes("\u9EB5") || lowerText.includes("\u8336\u5C4B") || lowerText.includes("\u98F2")) {
-          category = "\u9910\u98F2";
-        } else if (lowerText.includes("\u85AA\u6C34") || lowerText.includes("\u6536\u5165") || lowerText.includes("\u767C\u85AA")) {
-          category = "\u85AA\u8CC7\u6240\u5F97";
-          type = "income";
+      return parts.map((part) => parseSinglePart(part)).filter((r) => r.amount > 0);
+    };
+    const parseSinglePart = (part) => {
+      let category = "\u65E5\u5E38\u652F\u51FA";
+      let type = "expense";
+      let merchant = void 0;
+      const lowerText = part.toLowerCase();
+      const isPartSubscription = lowerText.includes("netflix") || lowerText.includes("spotify") || lowerText.includes("disney") || lowerText.includes("\u6708\u8CBB") || lowerText.includes("\u5B9A\u671F\u6263\u6B3E") || lowerText.includes("\u6263\u6B3E") || lowerText.includes("youtube") || lowerText.includes("icloud");
+      if (isPartSubscription) {
+        category = "\u8A02\u95B1\u670D\u52D9";
+        type = "subscription";
+        if (lowerText.includes("netflix")) merchant = "Netflix";
+        else if (lowerText.includes("spotify")) merchant = "Spotify";
+        else if (lowerText.includes("disney")) merchant = "Disney+";
+        else if (lowerText.includes("youtube")) merchant = "YouTube Premium";
+        else merchant = "\u8A02\u95B1\u670D\u52D9";
+      } else if (lowerText.includes("\u516C\u8ECA") || lowerText.includes("\u8A08\u7A0B\u8ECA") || lowerText.includes("uber") || lowerText.includes("\u642D\u8ECA") || lowerText.includes("\u4EA4\u901A") || lowerText.includes("\u6377\u904B") || lowerText.includes("\u706B\u8ECA") || lowerText.includes("\u9AD8\u9435") || lowerText.includes("\u52A0\u6CB9")) {
+        category = "\u4EA4\u901A";
+      } else if (lowerText.includes("\u8863") || lowerText.includes("\u978B") || lowerText.includes("\u6CBB\u88DD") || lowerText.includes("\u8932")) {
+        category = "\u6CBB\u88DD\u8CBB";
+      } else if (lowerText.includes("\u5403") || lowerText.includes("\u706B\u934B") || lowerText.includes("\u98EF") || lowerText.includes("\u9910") || lowerText.includes("\u9EB5") || lowerText.includes("\u8336\u5C4B") || lowerText.includes("\u98F2")) {
+        category = "\u9910\u98F2";
+      } else if (lowerText.includes("\u85AA\u6C34") || lowerText.includes("\u6536\u5165") || lowerText.includes("\u767C\u85AA")) {
+        category = "\u85AA\u8CC7\u6240\u5F97";
+        type = "income";
+      }
+      let amount = 0;
+      const allNumbers = part.match(/\d+/g)?.map(Number) || [];
+      if (allNumbers.length > 0) {
+        const yuanMatch = part.match(/(\d+)\s*元/);
+        const dollarMatch = part.match(/\$?(\d+)/);
+        if (yuanMatch && yuanMatch[1]) {
+          amount = Number(yuanMatch[1]);
+        } else if (dollarMatch && dollarMatch[1]) {
+          amount = Number(dollarMatch[1]);
+        } else {
+          amount = Math.max(...allNumbers);
         }
-        let amount = 0;
-        const allNumbers = part.match(/\d+/g)?.map(Number) || [];
-        if (allNumbers.length > 0) {
-          const yuanMatch = part.match(/(\d+)\s*元/);
-          const dollarMatch = part.match(/\$?(\d+)/);
-          if (yuanMatch && yuanMatch[1]) {
-            amount = Number(yuanMatch[1]);
-          } else if (dollarMatch && dollarMatch[1]) {
-            amount = Number(dollarMatch[1]);
-          } else {
-            amount = Math.max(...allNumbers);
-          }
-        }
-        return {
-          amount,
-          type,
-          category,
-          location: lowerText.includes("\u9022\u7532") ? "\u9022\u7532" : void 0,
-          merchant: lowerText.includes("uber") ? "Uber" : lowerText.includes("\u4E94\u5341\u5D50") ? "\u4E94\u5341\u5D50" : lowerText.includes("\u8336\u5C4B") ? "\u5341\u4E5D\u8336\u5C4B" : merchant,
-          note: part,
-          tags: ["\u65E5\u5E38", "\u81EA\u52D5\u89E3\u6790"],
-          recurrence: "none",
-          originalText: part,
-          success: true
-        };
-      }).filter((r) => r.amount > 0);
+      }
+      return {
+        amount,
+        type,
+        category,
+        location: lowerText.includes("\u9022\u7532") ? "\u9022\u7532" : void 0,
+        merchant: lowerText.includes("uber") ? "Uber" : lowerText.includes("\u4E94\u5341\u5D50") ? "\u4E94\u5341\u5D50" : lowerText.includes("\u8336\u5C4B") ? "\u5341\u4E5D\u8336\u5C4B" : merchant,
+        note: part,
+        tags: type === "subscription" ? ["\u56FA\u5B9A\u652F\u51FA", "\u81EA\u52D5\u6263\u6B3E"] : ["\u65E5\u5E38", "\u81EA\u52D5\u89E3\u6790"],
+        recurrence: type === "subscription" ? "monthly" : "none",
+        originalText: part,
+        success: true
+      };
     };
     try {
       const apiKey = getApiKey();
