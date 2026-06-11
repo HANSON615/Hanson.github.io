@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-morandi-50: #f4f6f3;
+  --color-morandi-100: #e7ebd1;
+  --color-morandi-200: #d6ded4;
+  --color-morandi-300: #b4c4b1;
+  --color-morandi-400: #93a890;
+  --color-morandi-500: #728a6f;
+  --color-morandi-600: #556c52;
+  --color-morandi-700: #3f513d;
+  --color-morandi-800: #293628;
+  --color-morandi-900: #1a2219;
+  
+  --color-terracotta-50: #faf6f3;
+  --color-terracotta-100: #f5ebe6;
+  --color-terracotta-200: #e6cec2;
+  --color-terracotta-300: #d6b09e;
+  --color-terracotta-400: #c28870;
+  --color-terracotta-500: #aa654b;
+  --color-terracotta-600: #8a4f38;
+}
+
+body {
+  background-color: #f7f9f6;
+  color: #293628;
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f7f9f6;
+}
+::-webkit-scrollbar-thumb {
+  background: #c3d1c0;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #aabda6;
+}

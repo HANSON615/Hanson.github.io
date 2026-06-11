@@ -1,0 +1,6 @@
+{
+  "name": "AI 記帳",
+  "description": "一個優雅的莫蘭迪綠色系 AI 智慧記帳與資產規劃系統，支援自然語言模糊記帳、理財小精靈、超支警告、定額訂閱追蹤與長期財務目標規劃。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
