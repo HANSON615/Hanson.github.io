@@ -505,9 +505,7 @@ export default function App() {
       }
       
       // 加入 AI 回覆
-      const displayText = isMockResponse 
-        ? aiResponse + '\n\n⚠️ [模擬回覆 - 請確認 API Key 設置]'
-        : aiResponse;
+      const displayText = aiResponse;
       
       const newAiMessage = {
         role: 'ai' as const,
@@ -592,9 +590,7 @@ export default function App() {
       }
       
       // 加入 AI 回覆
-      const displayText = isMockResponse 
-        ? aiResponse + '\n\n⚠️ [模擬回覆 - 請確認 API Key 設置]'
-        : aiResponse;
+      const displayText = aiResponse;
       
       const newAiMsg = {
         role: 'ai' as const,
