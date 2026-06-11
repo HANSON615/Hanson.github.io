@@ -398,7 +398,8 @@ async function startServer() {
     }
 
     try {
-      const ai = getGeminiClient();
+      console.log("[AI Chat] Calling REAL Gemini API...");
+      
       const prompt = `您是一位既專業又親切的「AI 理財管家」。請用台灣繁體中文回覆使用者的問題。
 
 --- 使用者當前財務數據 ---
@@ -415,18 +416,40 @@ async function startServer() {
 
 請根據上述財務數據，給予親切、專業且具體的回覆。`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      console.log("[AI Chat] Sending request to Gemini API...");
+      
+      const response = await axios.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }]
+        }]
       });
 
-      const aiResponse = response.text || '抱歉，我現在有點忙，請稍後再試試 🌿';
-      console.log("[AI Chat] Gemini response received");
+      console.log("[AI Chat] Gemini API response received!");
+      console.log("[AI Chat] Response status:", response.status);
       
-      res.json({ response: aiResponse });
+      const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '抱歉，我現在有點忙，請稍後再試試 🌿';
+      
+      console.log("[AI Chat] AI Response prepared");
+      
+      res.json({ response: aiResponse, isMock: false });
     } catch (e: any) {
-      console.error("[AI Chat] Error:", e);
-      res.status(500).json({ error: e.message || "Failed to get AI response" });
+      console.error("[AI Chat] REAL API ERROR:", e?.response?.data || e?.message || e);
+      console.error("[AI Chat] Falling back to mock response due to error");
+      
+      // 如果真的 API 失敗，還是給用戶一個回覆
+      const lowerMsg = message.toLowerCase();
+      let fallbackResponse = '了解！我是您的 AI 理財管家。有什麼能幫助您的嗎？';
+      
+      if (lowerMsg.includes('你好') || lowerMsg.includes('嗨')) {
+        fallbackResponse = '您好！很高興為您服務 🌿。我是您的 AI 理財管家，有任何關於財務、預算、投資的問題都可以問我！';
+      } else if (lowerMsg.includes('謝謝')) {
+        fallbackResponse = '不客氣！很高興能幫到您 😊。有其他問題歡迎隨時問我！';
+      } else if (lowerMsg.includes('股票')) {
+        fallbackResponse = '關於股票投資，建議您可以：1. 分散投資降低風險 2. 定期定額投入 3. 關注整體大盤趨勢。';
+      }
+      
+      res.json({ response: fallbackResponse, isMock: true, note: 'API call failed, using fallback' });
     }
   });
 

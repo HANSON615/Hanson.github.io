@@ -32,24 +32,6 @@ import_dotenv.default.config();
 var GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 var GEMINI_MODEL = "gemini-1.5-flash";
 var GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
-var aiClient = null;
-function getGeminiClient() {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn("WARNING: GEMINI_API_KEY is not defined. AI functionality will be limited to mock fallback.");
-    }
-    aiClient = new import_genai.GoogleGenAI({
-      apiKey: apiKey || "MOCK_KEY",
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build"
-        }
-      }
-    });
-  }
-  return aiClient;
-}
 async function startServer() {
   console.log("[Server] Starting server...");
   console.log("[Server] Environment variables:", Object.keys(process.env).filter((k) => !k.includes("KEY") && !k.includes("SECRET")));
@@ -369,7 +351,7 @@ async function startServer() {
       return res.json({ response: mockResponse, isMock: true });
     }
     try {
-      const ai = getGeminiClient();
+      console.log("[AI Chat] Calling REAL Gemini API...");
       const prompt = `\u60A8\u662F\u4E00\u4F4D\u65E2\u5C08\u696D\u53C8\u89AA\u5207\u7684\u300CAI \u7406\u8CA1\u7BA1\u5BB6\u300D\u3002\u8ACB\u7528\u53F0\u7063\u7E41\u9AD4\u4E2D\u6587\u56DE\u8986\u4F7F\u7528\u8005\u7684\u554F\u984C\u3002
 
 --- \u4F7F\u7528\u8005\u7576\u524D\u8CA1\u52D9\u6578\u64DA ---
@@ -385,16 +367,31 @@ async function startServer() {
 \u4F7F\u7528\u8005\u554F\u984C: ${message}
 
 \u8ACB\u6839\u64DA\u4E0A\u8FF0\u8CA1\u52D9\u6578\u64DA\uFF0C\u7D66\u4E88\u89AA\u5207\u3001\u5C08\u696D\u4E14\u5177\u9AD4\u7684\u56DE\u8986\u3002`;
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      console.log("[AI Chat] Sending request to Gemini API...");
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        contents: [{
+          role: "user",
+          parts: [{ text: prompt }]
+        }]
       });
-      const aiResponse = response.text || "\u62B1\u6B49\uFF0C\u6211\u73FE\u5728\u6709\u9EDE\u5FD9\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u8A66 \u{1F33F}";
-      console.log("[AI Chat] Gemini response received");
-      res.json({ response: aiResponse });
+      console.log("[AI Chat] Gemini API response received!");
+      console.log("[AI Chat] Response status:", response.status);
+      const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "\u62B1\u6B49\uFF0C\u6211\u73FE\u5728\u6709\u9EDE\u5FD9\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u8A66 \u{1F33F}";
+      console.log("[AI Chat] AI Response prepared");
+      res.json({ response: aiResponse, isMock: false });
     } catch (e) {
-      console.error("[AI Chat] Error:", e);
-      res.status(500).json({ error: e.message || "Failed to get AI response" });
+      console.error("[AI Chat] REAL API ERROR:", e?.response?.data || e?.message || e);
+      console.error("[AI Chat] Falling back to mock response due to error");
+      const lowerMsg = message.toLowerCase();
+      let fallbackResponse = "\u4E86\u89E3\uFF01\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6\u3002\u6709\u4EC0\u9EBC\u80FD\u5E6B\u52A9\u60A8\u7684\u55CE\uFF1F";
+      if (lowerMsg.includes("\u4F60\u597D") || lowerMsg.includes("\u55E8")) {
+        fallbackResponse = "\u60A8\u597D\uFF01\u5F88\u9AD8\u8208\u70BA\u60A8\u670D\u52D9 \u{1F33F}\u3002\u6211\u662F\u60A8\u7684 AI \u7406\u8CA1\u7BA1\u5BB6\uFF0C\u6709\u4EFB\u4F55\u95DC\u65BC\u8CA1\u52D9\u3001\u9810\u7B97\u3001\u6295\u8CC7\u7684\u554F\u984C\u90FD\u53EF\u4EE5\u554F\u6211\uFF01";
+      } else if (lowerMsg.includes("\u8B1D\u8B1D")) {
+        fallbackResponse = "\u4E0D\u5BA2\u6C23\uFF01\u5F88\u9AD8\u8208\u80FD\u5E6B\u5230\u60A8 \u{1F60A}\u3002\u6709\u5176\u4ED6\u554F\u984C\u6B61\u8FCE\u96A8\u6642\u554F\u6211\uFF01";
+      } else if (lowerMsg.includes("\u80A1\u7968")) {
+        fallbackResponse = "\u95DC\u65BC\u80A1\u7968\u6295\u8CC7\uFF0C\u5EFA\u8B70\u60A8\u53EF\u4EE5\uFF1A1. \u5206\u6563\u6295\u8CC7\u964D\u4F4E\u98A8\u96AA 2. \u5B9A\u671F\u5B9A\u984D\u6295\u5165 3. \u95DC\u6CE8\u6574\u9AD4\u5927\u76E4\u8DA8\u52E2\u3002";
+      }
+      res.json({ response: fallbackResponse, isMock: true, note: "API call failed, using fallback" });
     }
   });
   app.post("/api/stock-price", async (req, res) => {
