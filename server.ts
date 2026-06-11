@@ -65,6 +65,50 @@ async function startServer() {
     });
   });
 
+  // === 測試端點：測試 Gemini API ===
+  app.get('/api/test-gemini', async (req, res) => {
+    console.log("[Test Endpoint] Testing Gemini API...");
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        error: "API Key not found",
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    try {
+      console.log("[Test Endpoint] Calling Gemini API...");
+      const response = await axios.post(`${GEMINI_API_URL}?key=${apiKey}`, {
+        contents: [{
+          role: 'user',
+          parts: [{ text: "你好，請用繁體中文簡單自我介紹" }]
+        }]
+      });
+      
+      console.log("[Test Endpoint] Gemini API success!");
+      
+      const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
+      
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        apiResponse: aiResponse,
+        fullResponse: response.data
+      });
+    } catch (e: any) {
+      console.error("[Test Endpoint] Gemini API ERROR:", e?.response?.data || e?.message || e);
+      
+      res.json({
+        success: false,
+        timestamp: new Date().toISOString(),
+        error: e?.message || "Unknown error",
+        errorDetails: e?.response?.data || null
+      });
+    }
+  });
+
   // API Route: Natural Language Parse Transaction
   app.post('/api/parse-transaction', async (req, res) => {
     const { text } = req.body;

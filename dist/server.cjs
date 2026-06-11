@@ -56,6 +56,42 @@ async function startServer() {
       nodeEnv: process.env.NODE_ENV
     });
   });
+  app.get("/api/test-gemini", async (req, res) => {
+    console.log("[Test Endpoint] Testing Gemini API...");
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        error: "API Key not found",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    try {
+      console.log("[Test Endpoint] Calling Gemini API...");
+      const response = await import_axios.default.post(`${GEMINI_API_URL}?key=${apiKey}`, {
+        contents: [{
+          role: "user",
+          parts: [{ text: "\u4F60\u597D\uFF0C\u8ACB\u7528\u7E41\u9AD4\u4E2D\u6587\u7C21\u55AE\u81EA\u6211\u4ECB\u7D39" }]
+        }]
+      });
+      console.log("[Test Endpoint] Gemini API success!");
+      const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
+      res.json({
+        success: true,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        apiResponse: aiResponse,
+        fullResponse: response.data
+      });
+    } catch (e) {
+      console.error("[Test Endpoint] Gemini API ERROR:", e?.response?.data || e?.message || e);
+      res.json({
+        success: false,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        error: e?.message || "Unknown error",
+        errorDetails: e?.response?.data || null
+      });
+    }
+  });
   app.post("/api/parse-transaction", async (req, res) => {
     const { text } = req.body;
     console.log("Parsing text:", text);
